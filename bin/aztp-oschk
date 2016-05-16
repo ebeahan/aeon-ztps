@@ -1,0 +1,175 @@
+#!/usr/bin/env python
+
+import sys
+import json
+import argparse
+import yaml
+import re
+import operator
+from collections import namedtuple
+from functools import partial
+
+
+class HwNoMatchError(Exception):
+    pass
+
+
+class HwMultiMatchError(Exception):
+    pass
+
+
+class CfgError(Exception):
+    pass
+
+
+class ArgumentParser(argparse.ArgumentParser):
+    class ParserError(Exception):
+        pass
+
+    def error(self, message):
+        raise ArgumentParser.ParserError(message)
+
+
+def cli_parse(cmdargs=None):
+    psr = ArgumentParser(
+        prog='aztp-oschk',
+        description="AEON-ZTP OS-checker",
+        add_help=True)
+
+    psr.add_argument(
+        '-c', '--config',
+        dest='config_file',
+        help='configuration file',
+        default='os.cfg')
+
+    psr.add_argument(
+        '-o', '--os_ver', required=True,
+        help='OS version string')
+
+    psr.add_argument(
+        '-m', '--hw_model', required=True,
+        help='hardware model string')
+
+    # any error with args parsing will raise an exception;
+    # this will be caught in the calling environment and
+    # handled properly
+
+    return psr.parse_args(cmdargs)
+
+
+def load_cfg(filepath):
+    return yaml.safe_load(open(filepath))
+
+
+def match_hw_model(args, cfg_data):
+    # find entry matching the hw_model
+
+    matches = filter(
+        None,
+        [re.match(pattern=regex, string=args.hw_model,
+                  flags=re.IGNORECASE)
+            for regex in cfg_data.keys()])
+
+    # validate on the number of matches found
+
+    n_found = len(matches)
+    if 0 == n_found and ('default' not in cfg_data.keys()):
+        raise HwNoMatchError()
+
+    if n_found > 1:
+        raise HwMultiMatchError(
+            'matching both: {}'
+            .format([m.re.pattern for m in matches])
+        )
+
+    # return the match information
+
+    pattern = matches[0].re.pattern
+    return namedtuple('hw_match', 'pattern data')(pattern, cfg_data[pattern])
+
+
+def match_os_version(args, hw_match):
+    """
+    Examines the matched hw_model entry and compares
+    the expected vs. actual OS versions.  If the actual OS
+    version does match the Users intent, then return the
+    image name for the system to load.  Otherwise return None.
+    """
+    _keys = ['exact', 'match']
+    if not any(k in hw_match for k in _keys):
+        raise CfgError(
+            'Expecting one of: {}'
+            .format(_keys))
+
+    # if the User specifies a regex match, then check for
+    # that match; ignoring case
+
+    match = hw_match.get('match')
+    if match:
+        found = re.match(pattern=match, string=args.os_ver,
+                         flags=re.IGNORECASE)
+        return False if found else hw_match['image']
+
+    # 'listify' the exact value and then check the actual os
+    # version against one of the one's specified by the User.
+    # make the values lower-case to ignore case
+
+    exact = hw_match.get('exact')
+    exact = exact if isinstance(exact, list) else [exact]
+    os_ver = args.os_ver.lower()
+    found = any(operator.eq(os_ver, this.lower()) for this in exact)
+    return False if found else hw_match['image']
+
+return_status = partial(json.dump, fp=sys.stdout)
+
+
+def main():
+    try:
+
+        cli_args = cli_parse()
+        cfg_data = load_cfg(cli_args.config_file)
+        hw_match = match_hw_model(cli_args, cfg_data)
+        sw_match = match_os_version(cli_args, hw_match.data)
+
+    except ArgumentParser.ParserError as exc:
+        return_status({
+            'ok': False,
+            'error_type': 'args',
+            'error_message': exc.message
+        })
+        sys.exit(1)
+
+    except HwNoMatchError:
+        return_status({
+            'ok': False,
+            'error_type': 'hw_match',
+            'error_message': 'no matching hw_model value'
+        })
+        sys.exit(1)
+
+    except HwMultiMatchError as exc:
+        return_status({
+            'ok': False,
+            'error_type': 'hw_match',
+            'error_message': exc.message
+        })
+        sys.exit(1)
+
+    except CfgError as exc:
+        return_status({
+            'ok': False,
+            'error_type': 'cfg_error',
+            'error_message': exc.message
+        })
+        sys.exit(1)
+
+
+    return_status({
+        'ok': True,
+        'image': sw_match
+    })
+    sys.exit(0)
+
+
+if __name__ == '__main__':
+    main()
