@@ -5,15 +5,12 @@ Vagrant.configure(2) do |config|
   config.vm.hostname = 'aeon-ztp'
 
   config.vm.synced_folder ".", "/aeon-ztp", type: "nfs"
+  config.vm.synced_folder "../aeon-nxos", "/aeon-nxos", type: "nfs"
 
   config.vm.network "forwarded_port", guest: 8888, host: 8888
   config.vm.network "private_network", type: "dhcp"
 
   config.vm.provision "shell", inline: <<-EOS
-#    sudo mkdir -p /media/sf_Projects/tmp
-#    sudo chmod a+rwx /media/sf_Projects/tmp
-#    ln -s /vagrant /media/sf_Projects/Leblon
-#
     /aeon-ztp/vagrant_vm_setup.sh
   EOS
 
