@@ -4,7 +4,7 @@ sudo apt-get update
 
 sudo apt-get install -y build-essential python-dev
 sudo apt-get install -y python-pip
-sudo apt-get install libxml2-dev libxslt-dev zlib1g-dev
+sudo apt-get install -y libxml2-dev libxslt-dev zlib1g-dev
 
 sudo pip install Flask
 sudo pip install Celery

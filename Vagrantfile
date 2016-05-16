@@ -5,7 +5,10 @@ Vagrant.configure(2) do |config|
   config.vm.hostname = 'aeon-ztp'
 
   config.vm.synced_folder ".", "/aeon-ztp", type: "nfs"
-  config.vm.synced_folder "../aeon-nxos", "/aeon-nxos", type: "nfs"
+
+  config.vm.synced_folder "../aeon-core", "/aeon-core", 
+     :nfs => true,
+     :linux__nfs_options => ['rw', 'no_subtree_check', 'all_squash', 'sync']
 
   config.vm.network "forwarded_port", guest: 8888, host: 8888
   config.vm.network "private_network", type: "dhcp"
