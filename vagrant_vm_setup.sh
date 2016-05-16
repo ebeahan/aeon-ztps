@@ -13,3 +13,11 @@ sudo pip install lxml
 
 sudo apt-get -y install rabbitmq-server
 sudo apt-get -y install postgresql postgresql-contrib
+sudo apt-get install -y xinetd tftpd tftp
+
+sudo mkdir /tftpboot
+sudo chmod -R 777 /tftpboot
+sudo chown -R nobody /tftpboot
+
+sudo cp etc/tftp /etc/xinet.d
+sudo service xinetd restart
