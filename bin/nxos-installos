@@ -90,6 +90,7 @@ def copy_image_to_device(dev, profile):
                 message='Missing --server parameter'))
         copy_from = copy_from.format(server=g_cli_args.server)
 
+    copy_from = os.path.join(copy_from, dev.install_os.image)
     g_log.info('starting copy [%s] ... please be patient' % copy_from)
     try:
         dev.install_os.copy_from(location=copy_from)
@@ -110,9 +111,12 @@ def start(dev):
     # @@@        code presumes that the files are perfectly formed.
 
     req_os_version = profile['os_version']
-    g_log.info("required OS version is: %s" % req_os_version)
+    dev_os_version = dev.facts['os_version']
 
-    if req_os_version == dev.facts['os_version']:
+    g_log.info("required OS version is: %s" % req_os_version)
+    g_log.info("device is current running: %s" % dev_os_version)
+
+    if req_os_version == dev_os_version:
         msg = 'image is already installed'
         g_log.info(msg)
         exit_results(dict(
@@ -127,6 +131,7 @@ def start(dev):
 
     dev.install_os(image=profile['image'])
     has_md5sum = dev.install_os.md5sum
+
     if not has_md5sum:
         # need to copy the image over to the device
         g_log.info('image does not exist on device, need to copy over')
@@ -136,12 +141,12 @@ def start(dev):
         # need to make sure the image/md5sum matches
         # @@@ TO-DO: implement this code branch
 
-        g_log.warn('existing file md5sum mismatch, need to re-copy image')
+        msg = 'existing file md5sum mismatch, need to re-copy image'
+        g_log.warn(msg)
         exit_results(dict(
             ok=False,
             error_type='not-implemented',
-            message="NOT IMPLEMENTED: image exists, but md5sum mismatch"
-        ))
+            message=msg))
     else:
         g_log.info('image file exists and md5sum matches OK.')
 
@@ -196,7 +201,7 @@ def main():
     except ProbeError:
         exit_results(dict(
             ok=False,
-            error_type='reachability',
+            error_type='login',
             message='Failed to probe target %s' % target))
 
     else:
