@@ -1,4 +1,4 @@
-os_version: "7.0(3)I2(2a)"
+os_version: 7.0(3)I2(2a)
 md5sum: d1872ef94f8b99657a3b80d12fb27113
-image: nxos.7.0.3.I2.2a.bin"
-copy_from: tftp://{server}/tftpboot
+image: nxos.7.0.3.I2.2a.bin
+copy_from: tftp://{server}

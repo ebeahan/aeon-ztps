@@ -6,9 +6,17 @@ import sys
 import os
 import json
 import argparse
+import yaml
+import logging
 
 from aeon.nxos import NxosDevice
 from aeon.exceptions import ProbeError, UnauthorizedError
+
+# ##### -----------------------------------------------------------------------
+# #####
+# #####                           Command Line Arguments
+# #####
+# ##### -----------------------------------------------------------------------
 
 psr = argparse.ArgumentParser(
     prog='nxos-installos',
@@ -25,45 +33,153 @@ psr.add_argument(
     default=os.getenv('AEON_USER'))
 
 psr.add_argument(
+    '--server',
+    help='ip-addr of the server hosting the image files')
+
+psr.add_argument(
     '--image-profile',
     help='name of the image profile file')
 
+psr.add_argument(
+    '--logfile',
+    help='name of log file')
+
 g_cli_args = psr.parse_args()
+g_log = logging.getLogger(name='nxos-installos')
 
-target = g_cli_args.target
-user = g_cli_args.user
-passwd = os.getenv('AEON_PASSWD')
 
+def setup_logging():
+    g_log.setLevel(logging.INFO)
+    fh = logging.FileHandler(g_cli_args.logfile)
+    fmt = logging.Formatter(
+        '%(asctime)s:%(levelname)s: {target}:%(message)s'
+        .format(target=g_cli_args.target))
+    fh.setFormatter(fmt)
+    g_log.addHandler(fh)
+
+if g_cli_args.logfile:
+    setup_logging()
+
+
+# ##### -----------------------------------------------------------------------
+# #####
+# #####                           Utility Functions
+# #####
+# ##### -----------------------------------------------------------------------
 
 def exit_results(results, exit_error=None):
     json.dump(results, fp=sys.stdout)
     sys.exit(0 if results['ok'] is True else exit_error or 1)
 
-if not user:
-    exit_results(dict(ok=False, message='Missing login user'))
-if not passwd:
-    exit_results(dict(ok=False, message='Missing login password'))
+
+# ##### -----------------------------------------------------------------------
+# #####
+# #####                           Main Code Functions
+# #####
+# ##### -----------------------------------------------------------------------
+
+def copy_image_to_device(dev, profile):
+    copy_from = profile['copy_from']
+
+    if '{server}' in copy_from:
+        if not g_cli_args.server:
+            exit_results(dict(
+                ok=False,
+                error_type='args',
+                message='Missing --server paramater'))
+        copy_from = copy_from.format(server=g_cli_args.server)
+
+    g_log.info('starting copy [%s] ... please be patient' % copy_from)
+    dev.install_os.copy_from(location=copy_from)
 
 
-def do_image_install(dev):
-    pass
+def start(dev):
+    profile = yaml.load(open(g_cli_args.image_profile))
+
+    # @@@ TO-DO: need to schema-check the profile data; the current
+    # @@@        code presumes that the files are perfectly formed.
+
+    req_os_version = profile['os_version']
+    if req_os_version == dev.facts['os_version']:
+        msg = 'OS version {} already installed'.format(req_os_version)
+        g_log.info(msg)
+        exit_results(dict(
+            ok=True,
+            rebooting=False,
+            message=msg
+        ))
+
+    # -----------------------------------------------------------------
+    # does the image exist on the device and/or need to be copied down?
+    # -----------------------------------------------------------------
+
+    dev.install_os(image=profile['image'])
+    has_md5sum = dev.install_os.md5sum
+    if not has_md5sum:
+        # need to copy the image over to the device
+        g_log.info('image does not exist on device, need to copy over')
+        copy_image_to_device(dev, profile)
+
+    elif has_md5sum != profile['md5sum']:
+        # need to make sure the image/md5sum matches
+        # @@@ TO-DO: implement this code branch
+
+        g_log.warn('existing file md5sum mismatch, need to re-copy image')
+        exit_results(dict(
+            ok=False,
+            error_type='not-implemented',
+            message="NOT IMPLEMENTED: image exists, but md5sum mismatch"
+        ))
+    else:
+        g_log.info('image file exists and md5sum matches OK.')
+
+    # -----------------------------------------------------------------
+    # at this point, the image exists, and md5sum matches
+    # now need to run the install process.  this will cause the device
+    # to reboot when the installation is completed
+    # -----------------------------------------------------------------
+
+    g_log.info('starting installation process ... please be patient')
+    dev.install_os.run()
+    g_log.info('installation process completed, device rebooting')
+
+    exit_results(dict(
+        ok=True,
+        rebooting=True,
+        message='installation completed'))
 
 def main():
+    target = g_cli_args.target
+    user = g_cli_args.user
+    passwd = os.getenv('AEON_PASSWD')
+
+    if not user:
+        exit_results(dict(
+            ok=False, error_type='login',
+            message='Missing login user'))
+    if not passwd:
+        exit_results(dict(
+            ok=False,
+            error_type='login',
+            message='Missing login password'))
+
     try:
         dev = NxosDevice(target, user=user, passwd=passwd)
 
     except UnauthorizedError:
         exit_results(dict(
             ok=False,
+            error_type='login',
             message='Uauthorized - check user/password'))
 
     except ProbeError:
         exit_results(dict(
             ok=False,
+            error_type='reachability',
             message='Failed to probe target %s' % target))
 
     else:
-        do_image_install(dev)
+        start(dev)
 
 if '__main__' == __name__:
     main()

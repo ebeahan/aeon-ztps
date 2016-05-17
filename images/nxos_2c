@@ -1,4 +1,4 @@
 os_version: 7.0(3)I2(2c)
 md5sum: 9ed4e8285b0ca4f62be901482533f2e6
 image: nxos.7.0.3.I2.2c.bin
-copy_from: tftp://{server}/tftpboot
+copy_from: tftp://{server}
