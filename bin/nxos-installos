@@ -87,7 +87,7 @@ def copy_image_to_device(dev, profile):
             exit_results(dict(
                 ok=False,
                 error_type='args',
-                message='Missing --server paramater'))
+                message='Missing --server parameter'))
         copy_from = copy_from.format(server=g_cli_args.server)
 
     g_log.info('starting copy [%s] ... please be patient' % copy_from)
@@ -110,8 +110,10 @@ def start(dev):
     # @@@        code presumes that the files are perfectly formed.
 
     req_os_version = profile['os_version']
+    g_log.info("required OS version is: %s" % req_os_version)
+
     if req_os_version == dev.facts['os_version']:
-        msg = 'OS version {} already installed'.format(req_os_version)
+        msg = 'image is already installed'
         g_log.info(msg)
         exit_results(dict(
             ok=True,
