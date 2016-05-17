@@ -10,6 +10,7 @@ import yaml
 import logging
 
 from aeon.nxos import NxosDevice
+from aeon.nxos.exceptions import NxosException
 from aeon.exceptions import ProbeError, UnauthorizedError
 
 # ##### -----------------------------------------------------------------------
@@ -90,7 +91,16 @@ def copy_image_to_device(dev, profile):
         copy_from = copy_from.format(server=g_cli_args.server)
 
     g_log.info('starting copy [%s] ... please be patient' % copy_from)
-    dev.install_os.copy_from(location=copy_from)
+    try:
+        dev.install_os.copy_from(location=copy_from)
+
+    except NxosException:
+        msg = 'failed to copy image'
+        g_log.error(msg)
+        exit_results(dict(
+            ok=False,
+            error_type='install',
+            message=msg))
 
 
 def start(dev):
@@ -140,13 +150,22 @@ def start(dev):
     # -----------------------------------------------------------------
 
     g_log.info('starting installation process ... please be patient')
-    dev.install_os.run()
-    g_log.info('installation process completed, device rebooting')
+    try:
+        dev.install_os.run()
+    except NxosException:
+        msg = 'failed to install properly'
+        g_log.error(msg)
+        exit_results(dict(
+            ok=False,
+            error_type='install',
+            message=msg))
 
+    g_log.info('installation process completed, device rebooting')
     exit_results(dict(
         ok=True,
         rebooting=True,
         message='installation completed'))
+
 
 def main():
     target = g_cli_args.target
