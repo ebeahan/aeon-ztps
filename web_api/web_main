@@ -14,7 +14,7 @@ def nxos_bootconf():
 def nxos_register():
     from_ipaddr = request.args.get('ip_addr') or request.remote_addr
     ztp_celery.do_this_thing.delay(os_name='nxos', ip_addr=from_ipaddr)
-    return "OK"
+    return ""
 
 
 if '__main__' == __name__:
