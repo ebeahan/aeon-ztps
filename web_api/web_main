@@ -5,7 +5,6 @@ from ztp_flask import app, manager
 import ztp_celery
 
 
-
 @app.route('/api/config0/nxos')
 def nxos_bootconf():
     return send_from_directory('static', 'nxos-config0.conf')
