@@ -1,0 +1,1 @@
+celery worker -A ztp_celery.celery --loglevel=info

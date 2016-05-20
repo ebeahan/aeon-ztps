@@ -1,15 +1,21 @@
 #!/usr/bin/env python
 
-import os
-from flask import Flask, send_from_directory
-from flask.ext.script import Manager
+from flask import request, send_from_directory
+from ztp_flask import app, manager
+from ztp_celery import do_this_thing
 
-app = Flask(__name__, static_url_path='')
-manager = Manager(app)
+
 
 @app.route('/api/config0/nxos')
 def nxos_bootconf():
     return send_from_directory('static', 'nxos-config0.conf')
+
+
+@app.route('/api/register/nxos', methods=['POST'])
+def nxos_register():
+    from_ipaddr = request.remote_addr
+    do_this_thing.delay(os_name='nxos', ip_addr=from_ipaddr)
+    return "OK"
 
 
 if '__main__' == __name__:
