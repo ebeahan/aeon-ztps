@@ -6,7 +6,7 @@ import sys
 import os
 import json
 import argparse
-import yaml
+import subprocess
 import logging
 
 from aeon.nxos import NxosDevice
@@ -28,22 +28,20 @@ psr = argparse.ArgumentParser(
     add_help=True)
 
 psr.add_argument(
-    '-t', '--target',
-    required=True,
+    '-t', '--target', required=True,
     help='hostname or ip_addr of target device')
 
 psr.add_argument(
-    '--server',
+    '--server', required=True,
     help='ip-addr of the server hosting the image files')
+
+psr.add_argument(
+    '--topdir', required=True,
+    help='toplevel directory containing files')
 
 psr.add_argument(
     '--logfile',
     help='name of log file')
-
-psr.add_argument(
-    '--configdir',
-    required=True,
-    help='directory containing configuration files')
 
 # ##### -------------------------
 # ##### authentication
@@ -96,34 +94,74 @@ def exit_results(results, exit_error=None):
 # ##### -----------------------------------------------------------------------
 
 def push_config1(dev):
-    all_conf = None
-    model_conf = None
-
-    config_dir = g_cli_args.configdir
+    topdir = g_cli_args.topdir
+    config_dir = os.path.join(topdir, 'etc', 'configs', 'nxos')
     all_fpath = os.path.join(config_dir, 'all.conf')
     model_fpath = os.path.join(config_dir, dev.facts['hw_model'] + '.conf')
 
     if os.path.isfile(all_fpath):
-        all_conf = open(all_fpath).read()
+        g_log.info('reading from: {}'.format(all_fpath))
+        conf = open(all_fpath).read()
+        g_log.info('pushing all config to device')
+        dev.api.exec_config(conf)
 
     if os.path.isfile(model_fpath):
-        model_conf = open(model_fpath).read()
+        g_log.info('reading model config from: {}'.format(model_fpath))
+        conf = open(model_fpath).read()
+        g_log.info('pushing model config to device')
+        dev.api.exec_config(conf)
 
-    if not (all_conf or model_conf):
-        return
 
-    try:
-        dev.api.exec_config(all_conf)
-        dev.api.exec_config(model_conf)
-    except:
-        import pdb
-        pdb.set_trace()
+def check_os_install(dev):
+    profile_dir = os.path.join(g_cli_args.topdir, 'etc', 'profiles', 'default', 'nxos')
+    conf_fpath = os.path.join(profile_dir, 'os-selector.cfg')
+
+    cmd = "aztp-os-selector -m {hw_model} -o '{os_ver}' -c {config}".format(
+        hw_model=dev.facts['hw_model'],
+        os_ver=dev.facts['os_version'],
+        config=conf_fpath)
+
+    child = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+
+    _stdout, _stderr = child.communicate()
+    return json.loads(_stdout)
+
+
+def do_os_install(dev, image_name):
+
+    image_fpath = os.path.join(g_cli_args.topdir,
+                               'etc', 'image-catalog',
+                               image_name)
+
+    cmd = "nxos-installos --target {target} --server {server} " \
+          "-U {u_env} -P {p_env} --image-profile {profile}".format(
+        target=dev.target, server=g_cli_args.server,
+        u_env=g_cli_args.user_var, p_env=g_cli_args.passwd_var,
+        profile=image_fpath)
+
+    if g_cli_args.logfile:
+        cmd += ' --logfile %s' % g_cli_args.logfile
+
+    child = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+    _stdout, _stderr = child.communicate()
+    return json.loads(_stdout)
 
 
 def start(dev):
     g_log.info("starting bootstrap process")
 
     push_config1(dev)
+
+    os_install = check_os_install(dev)
+    if os_install['image']:
+        g_log.info('softare image install required: %s' % os_install['image'])
+        got = do_os_install(dev, image_name=os_install['image'])
+        if not got['ok']:
+            g_log.info('software install FAILED: %s' % json.dumps(got))
+        else:
+            g_log.info('software install OK: %s' % json.dumps(got))
+    else:
+        g_log.info('no software install required')
 
     g_log.info("bootstrap process finished")
 
@@ -132,11 +170,11 @@ def main():
     user = os.getenv(g_cli_args.user_var)
     passwd = os.getenv(g_cli_args.passwd_var)
 
-    if not os.path.isdir(g_cli_args.configdir):
+    if not os.path.isdir(g_cli_args.topdir):
         exit_results(dict(
             ok=False,
             error_type='args',
-            message='{} is not a directory'.format(g_cli_args.configdir)))
+            message='{} is not a directory'.format(g_cli_args.topdir)))
 
     try:
         dev = NxosDevice(target, user=user, passwd=passwd)

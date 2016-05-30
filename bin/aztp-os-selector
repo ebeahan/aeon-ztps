@@ -9,6 +9,8 @@ import operator
 from collections import namedtuple
 from functools import partial
 
+_PROGNAME = 'aztp-os-selector'
+
 
 class HwNoMatchError(Exception):
     pass
@@ -32,15 +34,15 @@ class ArgumentParser(argparse.ArgumentParser):
 
 def cli_parse(cmdargs=None):
     psr = ArgumentParser(
-        prog='aztp-oschk',
-        description="AEON-ZTP OS-checker",
+        prog=_PROGNAME,
+        description="Aeon ZTP network OS selector",
         add_help=True)
 
     psr.add_argument(
         '-c', '--config',
         dest='config_file',
         help='configuration file',
-        default='os.cfg')
+        default='os-selector.cfg')
 
     psr.add_argument(
         '-o', '--os_ver', required=True,
@@ -56,13 +58,30 @@ def cli_parse(cmdargs=None):
 
     return psr.parse_args(cmdargs)
 
+# ##### -----------------------------------------------------------------------
+# #####
+# #####                           Utility Functions
+# #####
+# ##### -----------------------------------------------------------------------
+
+def exit_results(results, exit_error=None):
+    json.dump(results, fp=sys.stdout)
+    sys.exit(0 if results['ok'] is True else exit_error or 1)
 
 def load_cfg(filepath):
-    return yaml.safe_load(open(filepath))
+    try:
+        return yaml.safe_load(open(filepath))
+    except:
+        exit_results({
+            'ok': False,
+            'error_type': 'args',
+            'error_message': 'Unable to load file: %s' % filepath
+        })
 
 
 def match_hw_model(args, cfg_data):
     # find entry matching the hw_model
+    item_match = namedtuple('item_match', ['hw_match', 'data'])
 
     matches = filter(
         None,
@@ -73,19 +92,19 @@ def match_hw_model(args, cfg_data):
     # validate on the number of matches found
 
     n_found = len(matches)
-    if 0 == n_found and ('default' not in cfg_data.keys()):
-        raise HwNoMatchError()
-
-    if n_found > 1:
+    if 0 == n_found:
+        if 'default' in cfg_data:
+            return item_match('default', cfg_data['default'])
+        else:
+            raise HwNoMatchError()
+    elif n_found > 1:
         raise HwMultiMatchError(
             'matching both: {}'
             .format([m.re.pattern for m in matches])
         )
 
-    # return the match information
-
     pattern = matches[0].re.pattern
-    return namedtuple('hw_match', 'pattern data')(pattern, cfg_data[pattern])
+    return item_match(pattern, cfg_data[pattern])
 
 
 def match_os_version(args, hw_match):
@@ -95,7 +114,7 @@ def match_os_version(args, hw_match):
     version does match the Users intent, then return the
     image name for the system to load.  Otherwise return None.
     """
-    _keys = ['exact', 'match']
+    _keys = ['exact_match', 'regex_match']
     if not any(k in hw_match for k in _keys):
         raise CfgError(
             'Expecting one of: {}'
@@ -104,7 +123,7 @@ def match_os_version(args, hw_match):
     # if the User specifies a regex match, then check for
     # that match; ignoring case
 
-    match = hw_match.get('match')
+    match = hw_match.get('regex_match')
     if match:
         found = re.match(pattern=match, string=args.os_ver,
                          flags=re.IGNORECASE)
@@ -114,13 +133,11 @@ def match_os_version(args, hw_match):
     # version against one of the one's specified by the User.
     # make the values lower-case to ignore case
 
-    exact = hw_match.get('exact')
+    exact = hw_match.get('exact_match')
     exact = exact if isinstance(exact, list) else [exact]
     os_ver = args.os_ver.lower()
     found = any(operator.eq(os_ver, this.lower()) for this in exact)
     return False if found else hw_match['image']
-
-return_status = partial(json.dump, fp=sys.stdout)
 
 
 def main():
@@ -132,43 +149,37 @@ def main():
         sw_match = match_os_version(cli_args, hw_match.data)
 
     except ArgumentParser.ParserError as exc:
-        return_status({
+        exit_results({
             'ok': False,
             'error_type': 'args',
             'error_message': exc.message
         })
-        sys.exit(1)
 
     except HwNoMatchError:
-        return_status({
+        exit_results({
             'ok': False,
             'error_type': 'hw_match',
             'error_message': 'no matching hw_model value'
         })
-        sys.exit(1)
 
     except HwMultiMatchError as exc:
-        return_status({
+        exit_results({
             'ok': False,
             'error_type': 'hw_match',
             'error_message': exc.message
         })
-        sys.exit(1)
 
     except CfgError as exc:
-        return_status({
+        exit_results({
             'ok': False,
             'error_type': 'cfg_error',
             'error_message': exc.message
         })
-        sys.exit(1)
 
-
-    return_status({
+    exit_results({
         'ok': True,
         'image': sw_match
     })
-    sys.exit(0)
 
 
 if __name__ == '__main__':
