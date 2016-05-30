@@ -4,7 +4,7 @@ import re
 
 from celery import Celery
 from ztp_flask import app
-from aeon.nxos import NxosDevice
+import aeon.nxos as nxos
 
 __all__ = ['do_this_thing']
 
@@ -17,7 +17,7 @@ celery.conf.update(app.config)
 @celery.task
 def do_this_thing(os_name, ip_addr):
     print "the os is {0} and the ip_addr is {1}".format(os_name, ip_addr)
-    dev = NxosDevice(ip_addr, user='admin', passwd='admin')
+    dev = nxos.Device(ip_addr, user='admin', passwd='admin')
     print json.dumps(dev.facts, indent=4)
     return 1
 
