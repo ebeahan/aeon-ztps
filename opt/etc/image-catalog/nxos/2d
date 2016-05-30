@@ -1,0 +1,4 @@
+os_version: 7.0(3)I2(2d)
+md5sum: 4b7a25876078bf492ba06c3f01439fdc
+image: nxos.7.0.3.I2.2d.bin
+copy_from: tftp://{server}

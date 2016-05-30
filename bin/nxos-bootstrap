@@ -98,18 +98,24 @@ def push_config1(dev):
     config_dir = os.path.join(topdir, 'etc', 'configs', 'nxos')
     all_fpath = os.path.join(config_dir, 'all.conf')
     model_fpath = os.path.join(config_dir, dev.facts['hw_model'] + '.conf')
+    changed = False
 
     if os.path.isfile(all_fpath):
         g_log.info('reading from: {}'.format(all_fpath))
         conf = open(all_fpath).read()
         g_log.info('pushing all config to device')
         dev.api.exec_config(conf)
+        changed = True
 
     if os.path.isfile(model_fpath):
         g_log.info('reading model config from: {}'.format(model_fpath))
         conf = open(model_fpath).read()
         g_log.info('pushing model config to device')
         dev.api.exec_config(conf)
+        changed = True
+
+    if changed is True:
+        dev.api.exec_config("copy run start")
 
 
 def check_os_install(dev):
@@ -133,11 +139,12 @@ def do_os_install(dev, image_name):
                                'etc', 'image-catalog',
                                image_name)
 
-    cmd = "nxos-installos --target {target} --server {server} " \
-          "-U {u_env} -P {p_env} --image-profile {profile}".format(
-        target=dev.target, server=g_cli_args.server,
-        u_env=g_cli_args.user_var, p_env=g_cli_args.passwd_var,
-        profile=image_fpath)
+    cmd = "nxos-installos --target {target} --server {server} "\
+          "-U {u_env} -P {p_env} --image-profile {profile}"\
+          .format(
+            target=dev.target, server=g_cli_args.server,
+            u_env=g_cli_args.user_var, p_env=g_cli_args.passwd_var,
+            profile=image_fpath)
 
     if g_cli_args.logfile:
         cmd += ' --logfile %s' % g_cli_args.logfile
@@ -164,6 +171,7 @@ def start(dev):
         g_log.info('no software install required')
 
     g_log.info("bootstrap process finished")
+
 
 def main():
     target = g_cli_args.target
