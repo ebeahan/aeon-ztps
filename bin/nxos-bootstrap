@@ -1,0 +1,160 @@
+#!/usr/bin/env python
+
+# nxos-bootstrap
+
+import sys
+import os
+import json
+import argparse
+import yaml
+import logging
+
+from aeon.nxos import NxosDevice
+from aeon.nxos.exceptions import NxosException
+from aeon.exceptions import ProbeError, UnauthorizedError
+
+_PROGNAME = 'nxos-bootstrap'
+_PROGVER = '0.0.1'
+
+# ##### -----------------------------------------------------------------------
+# #####
+# #####                           Command Line Arguments
+# #####
+# ##### -----------------------------------------------------------------------
+
+psr = argparse.ArgumentParser(
+    prog=_PROGNAME,
+    description="Aeon ZTP bootstrapper for NXOS",
+    add_help=True)
+
+psr.add_argument(
+    '-t', '--target',
+    required=True,
+    help='hostname or ip_addr of target device')
+
+psr.add_argument(
+    '--server',
+    help='ip-addr of the server hosting the image files')
+
+psr.add_argument(
+    '--logfile',
+    help='name of log file')
+
+psr.add_argument(
+    '--configdir',
+    required=True,
+    help='directory containing configuration files')
+
+# ##### -------------------------
+# ##### authentication
+# ##### -------------------------
+
+group = psr.add_argument_group('authentication')
+
+group.add_argument(
+    '-U', dest='user_var',
+    required=True,
+    help='Username environment variable')
+
+group.add_argument(
+    '-P', dest='passwd_var',
+    required=True,
+    help='Passwd environment variable')
+
+g_cli_args = psr.parse_args()
+g_log = logging.getLogger(name=_PROGNAME)
+
+
+def setup_logging():
+    g_log.setLevel(logging.INFO)
+    fh = logging.FileHandler(g_cli_args.logfile)
+    fmt = logging.Formatter(
+        '%(asctime)s:%(levelname)s: {target}:%(message)s'
+        .format(target=g_cli_args.target))
+    fh.setFormatter(fmt)
+    g_log.addHandler(fh)
+
+if g_cli_args.logfile:
+    setup_logging()
+
+
+# ##### -----------------------------------------------------------------------
+# #####
+# #####                           Utility Functions
+# #####
+# ##### -----------------------------------------------------------------------
+
+def exit_results(results, exit_error=None):
+    json.dump(results, fp=sys.stdout)
+    sys.exit(0 if results['ok'] is True else exit_error or 1)
+
+
+# ##### -----------------------------------------------------------------------
+# #####
+# #####                           Main Code Functions
+# #####
+# ##### -----------------------------------------------------------------------
+
+def push_config1(dev):
+    all_conf = None
+    model_conf = None
+
+    config_dir = g_cli_args.configdir
+    all_fpath = os.path.join(config_dir, 'all.conf')
+    model_fpath = os.path.join(config_dir, dev.facts['hw_model'] + '.conf')
+
+    if os.path.isfile(all_fpath):
+        all_conf = open(all_fpath).read()
+
+    if os.path.isfile(model_fpath):
+        model_conf = open(model_fpath).read()
+
+    if not (all_conf or model_conf):
+        return
+
+    try:
+        dev.api.exec_config(all_conf)
+        dev.api.exec_config(model_conf)
+    except:
+        import pdb
+        pdb.set_trace()
+
+
+def start(dev):
+    g_log.info("starting bootstrap process")
+
+    push_config1(dev)
+
+    g_log.info("bootstrap process finished")
+
+def main():
+    target = g_cli_args.target
+    user = os.getenv(g_cli_args.user_var)
+    passwd = os.getenv(g_cli_args.passwd_var)
+
+    if not os.path.isdir(g_cli_args.configdir):
+        exit_results(dict(
+            ok=False,
+            error_type='args',
+            message='{} is not a directory'.format(g_cli_args.configdir)))
+
+    try:
+        dev = NxosDevice(target, user=user, passwd=passwd)
+
+    except ProbeError:
+        exit_results(dict(
+            ok=False,
+            error_type='login',
+            message='Failed to probe target %s' % target))
+
+    except UnauthorizedError:
+        exit_results(dict(
+            ok=False,
+            error_type='login',
+            message='Unauthorized - check user/password'))
+
+    else:
+        start(dev)
+
+if '__main__' == __name__:
+    main()
