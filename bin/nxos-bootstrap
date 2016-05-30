@@ -9,7 +9,7 @@ import argparse
 import subprocess
 import logging
 
-from aeon.nxos import NxosDevice
+import aeon.nxos as nxos
 from aeon.nxos.exceptions import NxosException
 from aeon.exceptions import ProbeError, UnauthorizedError
 
@@ -177,7 +177,7 @@ def main():
             message='{} is not a directory'.format(g_cli_args.topdir)))
 
     try:
-        dev = NxosDevice(target, user=user, passwd=passwd)
+        dev = nxos.Device(target, user=user, passwd=passwd)
 
     except ProbeError:
         exit_results(dict(
