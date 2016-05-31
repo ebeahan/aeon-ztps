@@ -8,6 +8,8 @@ import json
 import argparse
 import subprocess
 import logging
+import time
+import re
 
 import aeon.nxos as nxos
 from aeon.nxos.exceptions import NxosException
@@ -28,7 +30,7 @@ psr = argparse.ArgumentParser(
     add_help=True)
 
 psr.add_argument(
-    '-t', '--target', required=True,
+    '--target', required=True,
     help='hostname or ip_addr of target device')
 
 psr.add_argument(
@@ -37,11 +39,23 @@ psr.add_argument(
 
 psr.add_argument(
     '--topdir', required=True,
-    help='toplevel directory containing files')
+    help='toplevel directory aztp installation files')
 
 psr.add_argument(
     '--logfile',
     help='name of log file')
+
+psr.add_argument(
+    '--reload-delay',
+    dest='reload_delay',
+    default=10*60,
+    help="about of time/s to try to reconnect to device after reload")
+
+psr.add_argument(
+    '--init-delay',
+    dest='init_delay',
+    default=60,
+    help="amount of time/s to wait before starting the bootstrap process")
 
 # ##### -------------------------
 # ##### authentication
@@ -93,26 +107,34 @@ def exit_results(results, exit_error=None):
 # #####
 # ##### -----------------------------------------------------------------------
 
-def push_config1(dev):
+def do_push_config1(dev):
     topdir = g_cli_args.topdir
     config_dir = os.path.join(topdir, 'etc', 'configs', 'nxos')
     all_fpath = os.path.join(config_dir, 'all.conf')
     model_fpath = os.path.join(config_dir, dev.facts['hw_model'] + '.conf')
     changed = False
 
-    if os.path.isfile(all_fpath):
-        g_log.info('reading from: {}'.format(all_fpath))
-        conf = open(all_fpath).read()
-        g_log.info('pushing all config to device')
-        dev.api.exec_config(conf)
-        changed = True
+    try:
+        if os.path.isfile(all_fpath):
+            g_log.info('reading from: {}'.format(all_fpath))
+            conf = open(all_fpath).read()
+            g_log.info('pushing all config to device')
+            dev.api.exec_config(conf)
+            changed = True
 
-    if os.path.isfile(model_fpath):
-        g_log.info('reading model config from: {}'.format(model_fpath))
-        conf = open(model_fpath).read()
-        g_log.info('pushing model config to device')
-        dev.api.exec_config(conf)
-        changed = True
+        if os.path.isfile(model_fpath):
+            g_log.info('reading model config from: {}'.format(model_fpath))
+            conf = open(model_fpath).read()
+            g_log.info('pushing model config to device')
+            dev.api.exec_config(conf)
+            changed = True
+
+    except NxosException as exc:
+        g_log.critical("unable to push config: {}".format(exc.message))
+        exit_results(dict(
+            ok=False,
+            error_type='config',
+            message=exc.message))
 
     if changed is True:
         dev.api.exec_config("copy run start")
@@ -154,11 +176,26 @@ def do_os_install(dev, image_name):
     return json.loads(_stdout)
 
 
-def start(dev):
-    g_log.info("starting bootstrap process")
+def do_finalize(dev):
+    profile_dir = os.path.join(g_cli_args.topdir, 'etc', 'profiles', 'default', 'nxos')
 
-    push_config1(dev)
+    finalizer = os.path.join(profile_dir, 'finally')
+    if not os.path.isfile(finalizer):
+        g_log.info('no user provided finally script')
+        return
 
+    cmd = '{prog}'.format(prog=finalizer)
+
+    g_log.info("executing user provided finally script: {cmd}".format(cmd=cmd))
+
+    child = subprocess.Popen(
+        cmd, shell=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    _stdout, _stderr = child.communicate()
+
+
+def do_ensure_os_version(dev):
     os_install = check_os_install(dev)
     if os_install['image']:
         g_log.info('softare image install required: %s' % os_install['image'])
@@ -170,10 +207,9 @@ def start(dev):
     else:
         g_log.info('no software install required')
 
-    g_log.info("bootstrap process finished")
-
 
 def main():
+    dev = None
     target = g_cli_args.target
     user = os.getenv(g_cli_args.user_var)
     passwd = os.getenv(g_cli_args.passwd_var)
@@ -184,23 +220,64 @@ def main():
             error_type='args',
             message='{} is not a directory'.format(g_cli_args.topdir)))
 
-    try:
-        dev = nxos.Device(target, user=user, passwd=passwd)
+    g_log.info("starting bootstrap process, waiting {} "
+               "seconds before continuing".format(g_cli_args.init_delay))
 
-    except ProbeError:
-        exit_results(dict(
-            ok=False,
-            error_type='login',
-            message='Failed to probe target %s' % target))
+    # first wait the init_delay amount of time ... gives the device time
+    # to start the shutdown process; i.e. expect this script to be kicked
+    # off from the NXOS POAP process.
 
-    except UnauthorizedError:
-        exit_results(dict(
-            ok=False,
-            error_type='login',
-            message='Unauthorized - check user/password'))
+    time.sleep(g_cli_args.init_delay)
+    reload_countdown = g_cli_args.reload_delay
+    poll_delay = 10
 
+    while not dev:
+        g_log.info('reload-countdown at: {} seconds'.format(reload_countdown))
+
+        try:
+            dev = nxos.Device(
+                target, user=user, passwd=passwd, timeout=poll_delay)
+
+        except ProbeError:
+            reload_countdown -= poll_delay
+            if reload_countdown <= 0:
+                exit_results(dict(
+                    ok=False,
+                    error_type='login',
+                    message='Failed to probe target %s within reload countdown' % target))
+
+        except UnauthorizedError:
+            exit_results(dict(
+                ok=False,
+                error_type='login',
+                message='Unauthorized - check user/password'))
+
+    # now we need to wait for the system to be effectively online so we can
+    # push configurations and otherwise manage the device.  Using the artifact
+    # of the guestshell being activated as the trigger for this detection,
+    # at present; until we find a better way to do this detection.
+
+    dev.guestshell()
+    while reload_countdown >= 0:
+        g_log.info('reload-countdown at: {} seconds'.format(reload_countdown))
+        if 'Activated' == dev.guestshell.state:
+            break
+        time.sleep(poll_delay)
+        reload_countdown -= poll_delay
     else:
-        start(dev)
+        exit_results(dict(
+            ok=False,
+            error_type='login',
+            message='%s failed to find "System ready" within reload countdown' % target))
+
+    g_log.info("proceeding with bootstrap")
+
+    do_push_config1(dev)
+    do_ensure_os_version(dev)
+    do_finalize(dev)
+
+    g_log.info("bootstrap process finished")
+    exit_results(dict(ok=True))
 
 if '__main__' == __name__:
     main()
