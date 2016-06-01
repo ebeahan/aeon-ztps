@@ -176,27 +176,6 @@ def do_os_install(dev, image_name):
     return json.loads(_stdout)
 
 
-def do_finalize(dev):
-    profile_dir = os.path.join(g_cli_args.topdir, 'etc', 'profiles', 'default', 'nxos')
-
-    finalizer = os.path.join(profile_dir, 'finally')
-    if not os.path.isfile(finalizer):
-        g_log.info('no user provided finally script')
-        return
-
-    cmd = '{prog}'.format(prog=finalizer)
-
-    g_log.info("executing user provided finally script: {cmd}".format(cmd=cmd))
-
-    child = subprocess.Popen(
-        cmd, shell=True,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-    _stdout, _stderr = child.communicate()
-    g_log.info("finally stdout=[{}]".format(_stdout))
-    g_log.info("finally stderr=[{}]".format(_stderr))
-
-
 def do_ensure_os_version(dev):
     os_install = check_os_install(dev)
 
@@ -217,6 +196,31 @@ def do_ensure_os_version(dev):
             message=errmsg))
 
     g_log.info('software install OK: %s' % json.dumps(got))
+    g_log.info('rebooting device ... please be patient')
+
+    time.sleep(g_cli_args.init_delay)
+    return wait_for_device(countdown=g_cli_args.reload_delay, poll_delay=10)
+
+
+def do_finalize(dev):
+    profile_dir = os.path.join(g_cli_args.topdir, 'etc', 'profiles', 'default', 'nxos')
+
+    finalizer = os.path.join(profile_dir, 'finally')
+    if not os.path.isfile(finalizer):
+        g_log.info('no user provided finally script')
+        return
+
+    cmd = '{prog}'.format(prog=finalizer)
+
+    g_log.info("executing user provided finally script: {cmd}".format(cmd=cmd))
+
+    child = subprocess.Popen(
+        cmd, shell=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    _stdout, _stderr = child.communicate()
+    g_log.info("finally stdout=[{}]".format(_stdout))
+    g_log.info("finally stderr=[{}]".format(_stderr))
 
 
 def wait_for_device(countdown, poll_delay):
@@ -250,29 +254,15 @@ def wait_for_device(countdown, poll_delay):
                 error_type='login',
                 message='Unauthorized - check user/password'))
 
-    # dev.guestshell()
-    # while countdown >= 0:
-    #     g_log.info('reload-countdown at: {} seconds'.format(countdown))
-    #     if 'Activated' == dev.guestshell.state:
-    #         break
-    #     time.sleep(poll_delay)
-    #     countdown -= poll_delay
-    # else:
-    #     exit_results(dict(
-    #         ok=False,
-    #         error_type='login',
-    #         message='%s failed to find "System ready" within reload countdown' % target))
-
     g_log.info('device reachable, waiting for System ready')
     while countdown >= 0:
         g_log.info('reload-countdown at: {} seconds'.format(countdown))
         try:
             dev.api.exec_opcmd('delete volatile:system_ready', msg_type='cli_show_ascii')
             return dev
-        except NxExc.CommandError as exc:
+        except NxExc.CommandError:
             # means that the file does not exist yet, so wait some time
             # and try again
-#            g_log.warning(exc.message)
             time.sleep(poll_delay)
             countdown -= poll_delay
 
@@ -304,7 +294,7 @@ def main():
     g_log.info("proceeding with bootstrap")
 
     do_push_config1(dev)
-    do_ensure_os_version(dev)
+    dev = do_ensure_os_version(dev)
     do_finalize(dev)
 
     g_log.info("bootstrap process finished")
