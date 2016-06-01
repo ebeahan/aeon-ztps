@@ -193,6 +193,8 @@ def do_finalize(dev):
         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     _stdout, _stderr = child.communicate()
+    g_log.info("finally stdout=[{}]".format(_stdout))
+    g_log.info("finally stderr=[{}]".format(_stderr))
 
 
 def do_ensure_os_version(dev):
@@ -208,39 +210,23 @@ def do_ensure_os_version(dev):
         g_log.info('no software install required')
 
 
-def main():
-    dev = None
+def wait_for_device(countdown, poll_delay):
     target = g_cli_args.target
     user = os.getenv(g_cli_args.user_var)
     passwd = os.getenv(g_cli_args.passwd_var)
 
-    if not os.path.isdir(g_cli_args.topdir):
-        exit_results(dict(
-            ok=False,
-            error_type='args',
-            message='{} is not a directory'.format(g_cli_args.topdir)))
-
-    g_log.info("starting bootstrap process, waiting {} "
-               "seconds before continuing".format(g_cli_args.init_delay))
-
-    # first wait the init_delay amount of time ... gives the device time
-    # to start the shutdown process; i.e. expect this script to be kicked
-    # off from the NXOS POAP process.
-
-    time.sleep(g_cli_args.init_delay)
-    reload_countdown = g_cli_args.reload_delay
-    poll_delay = 10
+    dev = None
 
     while not dev:
-        g_log.info('reload-countdown at: {} seconds'.format(reload_countdown))
+        g_log.info('reload-countdown at: {} seconds'.format(countdown))
 
         try:
             dev = nxos.Device(
                 target, user=user, passwd=passwd, timeout=poll_delay)
 
         except ProbeError:
-            reload_countdown -= poll_delay
-            if reload_countdown <= 0:
+            countdown -= poll_delay
+            if countdown <= 0:
                 exit_results(dict(
                     ok=False,
                     error_type='login',
@@ -258,17 +244,39 @@ def main():
     # at present; until we find a better way to do this detection.
 
     dev.guestshell()
-    while reload_countdown >= 0:
-        g_log.info('reload-countdown at: {} seconds'.format(reload_countdown))
+    while countdown >= 0:
+        g_log.info('reload-countdown at: {} seconds'.format(countdown))
         if 'Activated' == dev.guestshell.state:
             break
         time.sleep(poll_delay)
-        reload_countdown -= poll_delay
+        countdown -= poll_delay
     else:
         exit_results(dict(
             ok=False,
             error_type='login',
             message='%s failed to find "System ready" within reload countdown' % target))
+
+    return dev
+
+
+def main():
+
+    if not os.path.isdir(g_cli_args.topdir):
+        exit_results(dict(
+            ok=False,
+            error_type='args',
+            message='{} is not a directory'.format(g_cli_args.topdir)))
+
+    g_log.info("starting bootstrap process in {} seconds"
+               .format(g_cli_args.init_delay))
+
+    # first wait the init_delay amount of time ... gives the device time
+    # to start the shutdown process; i.e. expect this script to be kicked
+    # off from the NXOS POAP process.
+
+    time.sleep(g_cli_args.init_delay)
+
+    dev = wait_for_device(countdown=g_cli_args.reload_delay, poll_delay=10)
 
     g_log.info("proceeding with bootstrap")
 
