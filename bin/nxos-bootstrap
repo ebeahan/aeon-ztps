@@ -12,7 +12,7 @@ import time
 import re
 
 import aeon.nxos as nxos
-from aeon.nxos.exceptions import NxosException
+import aeon.nxos.exceptions as NxExc
 from aeon.exceptions import ProbeError, UnauthorizedError
 
 _PROGNAME = 'nxos-bootstrap'
@@ -129,7 +129,7 @@ def do_push_config1(dev):
             dev.api.exec_config(conf)
             changed = True
 
-    except NxosException as exc:
+    except NxExc.NxosException as exc:
         g_log.critical("unable to push config: {}".format(exc.message))
         exit_results(dict(
             ok=False,
@@ -199,15 +199,24 @@ def do_finalize(dev):
 
 def do_ensure_os_version(dev):
     os_install = check_os_install(dev)
-    if os_install['image']:
-        g_log.info('softare image install required: %s' % os_install['image'])
-        got = do_os_install(dev, image_name=os_install['image'])
-        if not got['ok']:
-            g_log.info('software install FAILED: %s' % json.dumps(got))
-        else:
-            g_log.info('software install OK: %s' % json.dumps(got))
-    else:
+
+    if not os_install['image']:
         g_log.info('no software install required')
+        return
+
+    g_log.info('software image install required: %s' % os_install['image'])
+
+    got = do_os_install(dev, image_name=os_install['image'])
+    if not got['ok']:
+        errmsg = 'software install [{ver}] FAILED: {reason}'.format(
+                 ver=os_install['image'], reason=json.dumps(got))
+        g_log.critical(errmsg)
+        exit_results(dict(
+            ok=False,
+            error_type='install',
+            message=errmsg))
+
+    g_log.info('software install OK: %s' % json.dumps(got))
 
 
 def wait_for_device(countdown, poll_delay):
@@ -216,6 +225,9 @@ def wait_for_device(countdown, poll_delay):
     passwd = os.getenv(g_cli_args.passwd_var)
 
     dev = None
+
+    # first we need to wait for the device to be 'reachable' via the API.
+    # we'll use the probe error to detect if it is or not
 
     while not dev:
         g_log.info('reload-countdown at: {} seconds'.format(countdown))
@@ -238,25 +250,36 @@ def wait_for_device(countdown, poll_delay):
                 error_type='login',
                 message='Unauthorized - check user/password'))
 
-    # now we need to wait for the system to be effectively online so we can
-    # push configurations and otherwise manage the device.  Using the artifact
-    # of the guestshell being activated as the trigger for this detection,
-    # at present; until we find a better way to do this detection.
+    # dev.guestshell()
+    # while countdown >= 0:
+    #     g_log.info('reload-countdown at: {} seconds'.format(countdown))
+    #     if 'Activated' == dev.guestshell.state:
+    #         break
+    #     time.sleep(poll_delay)
+    #     countdown -= poll_delay
+    # else:
+    #     exit_results(dict(
+    #         ok=False,
+    #         error_type='login',
+    #         message='%s failed to find "System ready" within reload countdown' % target))
 
-    dev.guestshell()
+    g_log.info('device reachable, waiting for System ready')
     while countdown >= 0:
         g_log.info('reload-countdown at: {} seconds'.format(countdown))
-        if 'Activated' == dev.guestshell.state:
-            break
-        time.sleep(poll_delay)
-        countdown -= poll_delay
-    else:
-        exit_results(dict(
-            ok=False,
-            error_type='login',
-            message='%s failed to find "System ready" within reload countdown' % target))
+        try:
+            dev.api.exec_opcmd('delete volatile:system_ready', msg_type='cli_show_ascii')
+            return dev
+        except NxExc.CommandError as exc:
+            # means that the file does not exist yet, so wait some time
+            # and try again
+#            g_log.warning(exc.message)
+            time.sleep(poll_delay)
+            countdown -= poll_delay
 
-    return dev
+    exit_results(dict(
+        ok=False,
+        error_type='login',
+        message='%s failed to find "System ready" within reload countdown' % target))
 
 
 def main():
