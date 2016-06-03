@@ -1,11 +1,7 @@
-import json
 import subprocess
-import re
-import os
 
 from celery import Celery
 from ztp_flask import app
-import aeon.nxos as nxos
 
 __all__ = ['ztp_bootstrapper']
 
@@ -15,20 +11,13 @@ app.config['CELERY_RESULT_BACKEND'] = 'rpc://'
 celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
 celery.conf.update(app.config)
 
-# @celery.task
-# def bootstrapper(os_name, ip_addr):
-#     print "the os is {0} and the ip_addr is {1}".format(os_name, ip_addr)
-#     dev = nxos.Device(ip_addr, user='admin', passwd='admin')
-#     print json.dumps(dev.facts, indent=4)
-#     return 1
 
 @celery.task
-def ztp_bootstrapper(os_name, ip_addr):
+def ztp_bootstrapper(os_name, target_ipaddr):
 
     cmd_args = [
         'nxos-bootstrap',
-        '--target %s' % ip_addr,
-        '--server 172.20.80.10',
+        '--target %s' % target_ipaddr,
         '--topdir /home/admin/aeon-ztp/opt',
         '-U AEON_TUSER',
         '-P AEON_TPASSWD',

@@ -9,7 +9,7 @@ import argparse
 import subprocess
 import logging
 import time
-import re
+import socket
 
 import aeon.nxos as nxos
 import aeon.nxos.exceptions as NxExc
@@ -34,10 +34,6 @@ psr.add_argument(
     help='hostname or ip_addr of target device')
 
 psr.add_argument(
-    '--server', required=True,
-    help='ip-addr of the server hosting the image files')
-
-psr.add_argument(
     '--topdir', required=True,
     help='toplevel directory aztp installation files')
 
@@ -48,13 +44,13 @@ psr.add_argument(
 psr.add_argument(
     '--reload-delay',
     dest='reload_delay',
-    default=10*60,
+    type=int, default=10*60,
     help="about of time/s to try to reconnect to device after reload")
 
 psr.add_argument(
     '--init-delay',
     dest='init_delay',
-    default=60,
+    type=int, default=60,
     help="amount of time/s to wait before starting the bootstrap process")
 
 # ##### -------------------------
@@ -99,6 +95,12 @@ if g_cli_args.logfile:
 def exit_results(results, exit_error=None):
     json.dump(results, fp=sys.stdout)
     sys.exit(0 if results['ok'] is True else exit_error or 1)
+
+
+def get_my_ipaddr(dst):
+    dst_s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    dst_s.connect((dst, 0))
+    return dst_s.getsockname()[0]
 
 
 # ##### -----------------------------------------------------------------------
@@ -164,7 +166,7 @@ def do_os_install(dev, image_name):
     cmd = "nxos-installos --target {target} --server {server} "\
           "-U {u_env} -P {p_env} --image-profile {profile}"\
           .format(
-            target=dev.target, server=g_cli_args.server,
+            target=dev.target, server=get_my_ipaddr(dev.target),
             u_env=g_cli_args.user_var, p_env=g_cli_args.passwd_var,
             profile=image_fpath)
 
@@ -212,10 +214,16 @@ def do_finalize(dev):
 
     cmd = '{prog}'.format(prog=finalizer)
 
+    this_env = os.environ.copy()
+    this_env.update(dict(
+        AEON_LOGFILE=g_cli_args.logfile,
+        AEON_TARGET=g_cli_args.target,
+        SERVER=get_my_ipaddr(g_cli_args.target)))
+
     g_log.info("executing user provided finally script: {cmd}".format(cmd=cmd))
 
     child = subprocess.Popen(
-        cmd, shell=True,
+        cmd, shell=True, env=this_env,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     _stdout, _stderr = child.communicate()
@@ -288,7 +296,6 @@ def main():
     # off from the NXOS POAP process.
 
     time.sleep(g_cli_args.init_delay)
-
     dev = wait_for_device(countdown=g_cli_args.reload_delay, poll_delay=10)
 
     g_log.info("proceeding with bootstrap")
