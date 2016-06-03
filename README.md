@@ -1,2 +1,2 @@
 # aeon-ztp
-Multi-Vendor ZTP Server
+Aeon ZTP Server

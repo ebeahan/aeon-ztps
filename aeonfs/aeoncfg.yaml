@@ -1,0 +1,2 @@
+engine: "postgresql://aeon:aeon@localhost/AeonDB"
+mountpoint: "/home/vagrant/projects/ztp-server/mnt"
