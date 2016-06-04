@@ -3,6 +3,7 @@
 from flask import request, send_from_directory
 from ztp_flask import app, manager
 import ztp_celery
+import ztp_api_devices
 
 
 @app.route('/api/downloads/<filename>', methods=['GET'])
