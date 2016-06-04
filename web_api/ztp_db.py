@@ -20,6 +20,9 @@ class Device(Base):
     hw_model = Column(String(24), nullable=False)
     os_version = Column(String(32), nullable=False)
     os_name = Column(String(16), nullable=False)
+    state = Column(String(15))
+    message = Column(String(128))
+
 
 class DeviceSchema(ModelSchema):
     class Meta:
