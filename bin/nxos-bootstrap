@@ -124,7 +124,7 @@ def wait_for_device(countdown, poll_delay):
 
     while not dev:
         msg = 'reload-countdown at: {} seconds'.format(countdown)
-        post_device_status(target=target, state='AWAIT-REBOOT', message=msg)
+        post_device_status(target=target, state='AWAIT-ONLINE', message=msg)
         g_log.info(msg)
 
         try:
