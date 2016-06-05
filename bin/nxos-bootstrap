@@ -10,6 +10,8 @@ import subprocess
 import logging
 import time
 import socket
+import requests
+import yaml
 
 import aeon.nxos as nxos
 import aeon.nxos.exceptions as NxExc
@@ -17,6 +19,8 @@ from aeon.exceptions import ProbeError, UnauthorizedError
 
 _PROGNAME = 'nxos-bootstrap'
 _PROGVER = '0.0.1'
+
+_API_PORT = 5000
 
 # ##### -----------------------------------------------------------------------
 # #####
@@ -71,13 +75,14 @@ group.add_argument(
 
 g_cli_args = psr.parse_args()
 g_log = logging.getLogger(name=_PROGNAME)
+g_self_server = None
 
 
 def setup_logging():
     g_log.setLevel(logging.INFO)
     fh = logging.FileHandler(g_cli_args.logfile)
     fmt = logging.Formatter(
-        '%(asctime)s:%(levelname)s: {target}:%(message)s'
+        '%(asctime)s:%(levelname)s:{target}:%(message)s'
         .format(target=g_cli_args.target))
     fh.setFormatter(fmt)
     g_log.addHandler(fh)
@@ -92,9 +97,13 @@ if g_cli_args.logfile:
 # #####
 # ##### -----------------------------------------------------------------------
 
-def exit_results(results, exit_error=None):
-    json.dump(results, fp=sys.stdout)
-    sys.exit(0 if results['ok'] is True else exit_error or 1)
+def exit_results(results, exit_error=None, dev=None):
+    if results['ok']:
+        post_device_status(dev=dev, state='DONE', message='bootstrap completed OK')
+        sys.exit(0)
+    else:
+        post_device_status(dev=dev, state='FAILED', message=results['message'])
+        sys.exit(exit_error or 1)
 
 
 def get_my_ipaddr(dst):
@@ -103,9 +112,106 @@ def get_my_ipaddr(dst):
     return dst_s.getsockname()[0]
 
 
+def wait_for_device(countdown, poll_delay):
+    target = g_cli_args.target
+    user = os.getenv(g_cli_args.user_var)
+    passwd = os.getenv(g_cli_args.passwd_var)
+
+    dev = None
+
+    # first we need to wait for the device to be 'reachable' via the API.
+    # we'll use the probe error to detect if it is or not
+
+    while not dev:
+        msg = 'reload-countdown at: {} seconds'.format(countdown)
+        post_device_status(target=target, state='AWAIT-REBOOT', message=msg)
+        g_log.info(msg)
+
+        try:
+            dev = nxos.Device(
+                target, user=user, passwd=passwd, timeout=poll_delay)
+
+        except ProbeError:
+            countdown -= poll_delay
+            if countdown <= 0:
+                exit_results(dict(
+                    ok=False,
+                    error_type='login',
+                    message='Failed to probe target %s within reload countdown' % target))
+
+        except UnauthorizedError:
+            exit_results(dict(
+                ok=False,
+                error_type='login',
+                message='Unauthorized - check user/password'))
+
+    post_device_facts(dev)
+
+    msg = 'device reachable, waiting for System ready'
+    post_device_status(dev=dev, state='AWAIT-SYSTEM-READY', message=msg)
+    g_log.info(msg)
+
+    while countdown >= 0:
+        msg = 'ready-countdown at: {} seconds'.format(countdown)
+        post_device_status(dev=dev, message=msg)
+        g_log.info(msg)
+
+        try:
+            dev.api.exec_opcmd('delete volatile:system_ready', msg_type='cli_show_ascii')
+            return dev
+        except NxExc.CommandError:
+            # means that the file does not exist yet, so wait some time
+            # and try again
+            time.sleep(poll_delay)
+            countdown -= poll_delay
+
+    exit_results(dict(
+        ok=False,
+        error_type='login',
+        message='%s failed to find "System ready" within reload countdown' % target))
+
+
 # ##### -----------------------------------------------------------------------
 # #####
-# #####                           Main Code Functions
+# #####                           REST API functions
+# #####
+# ##### -----------------------------------------------------------------------
+
+def post_device_start(target):
+    requests.post(
+        url='http://%s/api/devices' % g_self_server,
+        json=dict(
+            ip_addr=target,
+            os_name='nxos',
+            state='START',
+            message='bootstrap started, waiting for device access'))
+
+
+def post_device_facts(dev):
+    requests.post(
+        url='http://%s/api/devices' % g_self_server,
+        json=dict(
+            ip_addr=dev.target,
+            serial_number=dev.facts['serial_number'],
+            hw_model=dev.facts['hw_model'],
+            os_version=dev.facts['os_version'],
+            os_name='nxos',
+            state='FACTS-GATHERED',
+            message='facts gathered, proceeding'))
+
+
+def post_device_status(dev=None, target=None, message=None, state=None):
+    requests.put(
+        url='http://%s/api/devices/status' % g_self_server,
+        json=dict(
+            os_name='nxos',
+            ip_addr=target or dev.target,
+            state=state, message=message))
+
+
+# ##### -----------------------------------------------------------------------
+# #####
+# #####                           General config process
 # #####
 # ##### -----------------------------------------------------------------------
 
@@ -115,6 +221,10 @@ def do_push_config1(dev):
     all_fpath = os.path.join(config_dir, 'all.conf')
     model_fpath = os.path.join(config_dir, dev.facts['hw_model'] + '.conf')
     changed = False
+
+    post_device_status(
+        dev=dev, state='CONFIG',
+        message='applying general config from %s' % config_dir)
 
     try:
         if os.path.isfile(all_fpath):
@@ -142,6 +252,12 @@ def do_push_config1(dev):
         dev.api.exec_config("copy run start")
 
 
+# ##### -----------------------------------------------------------------------
+# #####
+# #####                           OS install process
+# #####
+# ##### -----------------------------------------------------------------------
+
 def check_os_install(dev):
     profile_dir = os.path.join(g_cli_args.topdir, 'etc', 'profiles', 'default', 'nxos')
     conf_fpath = os.path.join(profile_dir, 'os-selector.cfg')
@@ -163,6 +279,12 @@ def do_os_install(dev, image_name):
                                'etc', 'image-catalog',
                                image_name)
 
+    image_data = yaml.load(open(image_fpath))
+    msg = 'installing OS version {} from {} ... please be patient'.format(
+        image_data['os_version'], image_data['copy_from'])
+
+    post_device_status(dev=dev, state='OS-INSTALL', message=msg)
+
     cmd = "nxos-installos --target {target} --server {server} "\
           "-U {u_env} -P {p_env} --image-profile {profile}"\
           .format(
@@ -183,7 +305,7 @@ def do_ensure_os_version(dev):
 
     if not os_install['image']:
         g_log.info('no software install required')
-        return
+        return dev
 
     g_log.info('software image install required: %s' % os_install['image'])
 
@@ -200,9 +322,19 @@ def do_ensure_os_version(dev):
     g_log.info('software install OK: %s' % json.dumps(got))
     g_log.info('rebooting device ... please be patient')
 
+    post_device_status(
+        dev, state='OS-INSTALLED',
+        message='OS install OK, rebooting ... please be patient')
+
     time.sleep(g_cli_args.init_delay)
     return wait_for_device(countdown=g_cli_args.reload_delay, poll_delay=10)
 
+
+# ##### -----------------------------------------------------------------------
+# #####
+# #####                           'finally' script
+# #####
+# ##### -----------------------------------------------------------------------
 
 def do_finalize(dev):
     profile_dir = os.path.join(g_cli_args.topdir, 'etc', 'profiles', 'default', 'nxos')
@@ -210,7 +342,7 @@ def do_finalize(dev):
     finalizer = os.path.join(profile_dir, 'finally')
     if not os.path.isfile(finalizer):
         g_log.info('no user provided finally script')
-        return
+        return 0
 
     cmd = '{prog}'.format(prog=finalizer)
 
@@ -220,7 +352,9 @@ def do_finalize(dev):
         AEON_TARGET=g_cli_args.target,
         SERVER=get_my_ipaddr(g_cli_args.target)))
 
-    g_log.info("executing user provided finally script: {cmd}".format(cmd=cmd))
+    message = "executing 'finally' script: {cmd}".format(cmd=cmd)
+    post_device_status(dev=dev, state='FINALLY', message=message)
+    g_log.info(message)
 
     child = subprocess.Popen(
         cmd, shell=True, env=this_env,
@@ -230,57 +364,21 @@ def do_finalize(dev):
     g_log.info("finally stdout=[{}]".format(_stdout))
     g_log.info("finally stderr=[{}]".format(_stderr))
 
+    return child.returncode
 
-def wait_for_device(countdown, poll_delay):
-    target = g_cli_args.target
-    user = os.getenv(g_cli_args.user_var)
-    passwd = os.getenv(g_cli_args.passwd_var)
 
-    dev = None
-
-    # first we need to wait for the device to be 'reachable' via the API.
-    # we'll use the probe error to detect if it is or not
-
-    while not dev:
-        g_log.info('reload-countdown at: {} seconds'.format(countdown))
-
-        try:
-            dev = nxos.Device(
-                target, user=user, passwd=passwd, timeout=poll_delay)
-
-        except ProbeError:
-            countdown -= poll_delay
-            if countdown <= 0:
-                exit_results(dict(
-                    ok=False,
-                    error_type='login',
-                    message='Failed to probe target %s within reload countdown' % target))
-
-        except UnauthorizedError:
-            exit_results(dict(
-                ok=False,
-                error_type='login',
-                message='Unauthorized - check user/password'))
-
-    g_log.info('device reachable, waiting for System ready')
-    while countdown >= 0:
-        g_log.info('reload-countdown at: {} seconds'.format(countdown))
-        try:
-            dev.api.exec_opcmd('delete volatile:system_ready', msg_type='cli_show_ascii')
-            return dev
-        except NxExc.CommandError:
-            # means that the file does not exist yet, so wait some time
-            # and try again
-            time.sleep(poll_delay)
-            countdown -= poll_delay
-
-    exit_results(dict(
-        ok=False,
-        error_type='login',
-        message='%s failed to find "System ready" within reload countdown' % target))
-
+# ##### -----------------------------------------------------------------------
+# #####
+# #####                           !!! MAIN !!!
+# #####
+# ##### -----------------------------------------------------------------------
 
 def main():
+    global g_self_server
+
+    g_self_server = "{}:{}".format(get_my_ipaddr(g_cli_args.target), _API_PORT)
+
+    post_device_start(g_cli_args.target)
 
     if not os.path.isdir(g_cli_args.topdir):
         exit_results(dict(
@@ -305,7 +403,7 @@ def main():
     do_finalize(dev)
 
     g_log.info("bootstrap process finished")
-    exit_results(dict(ok=True))
+    exit_results(dict(ok=True), dev=dev)
 
 if '__main__' == __name__:
     main()

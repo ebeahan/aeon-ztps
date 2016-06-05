@@ -15,11 +15,11 @@ Base = declarative_base()
 class Device(Base):
     Schema = None
     __tablename__ = 'devices'
-    serial_number = Column(String(32), primary_key=True)
-    ip_addr = Column(String(16), nullable=False)
-    hw_model = Column(String(24), nullable=False)
-    os_version = Column(String(32), nullable=False)
+    ip_addr = Column(String(16), primary_key=True)
     os_name = Column(String(16), nullable=False)
+    serial_number = Column(String(32))
+    hw_model = Column(String(24))
+    os_version = Column(String(32))
     state = Column(String(15))
     message = Column(String(128))
 
