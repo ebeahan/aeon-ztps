@@ -1,3 +1,4 @@
+from datetime import datetime
 from flask import request, jsonify
 from sqlalchemy import and_ as SQL_AND
 from sqlalchemy.orm.exc import NoResultFound
@@ -27,6 +28,11 @@ def find_device(db, table, dev_data):
         table.ip_addr == dev_data['ip_addr']))
 
 
+def last_update():
+    now = datetime.now()
+    return datetime.isoformat(now)
+
+
 @app.route('/api/devices', methods=['POST'])
 def _create_device():
     device_data = request.get_json()
@@ -47,7 +53,7 @@ def _create_device():
     # now try to add the new device to the database
 
     try:
-        db.add(table(**device_data))
+        db.add(table(last_update=last_update(), **device_data))
         db.commit()
 
     except Exception as exc:
@@ -74,6 +80,7 @@ def _put_device_status():
             rec.state = rqst_data['state']
 
         rec.message = rqst_data.get('message')
+        rec.last_update = last_update()
         db.commit()
 
     except NoResultFound:

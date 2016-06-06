@@ -233,6 +233,8 @@ def do_push_config1(dev):
             g_log.info('pushing all config to device')
             dev.api.exec_config(conf)
             changed = True
+        else:
+            g_log.info('no all.conf file found')
 
         if os.path.isfile(model_fpath):
             g_log.info('reading model config from: {}'.format(model_fpath))
@@ -240,6 +242,8 @@ def do_push_config1(dev):
             g_log.info('pushing model config to device')
             dev.api.exec_config(conf)
             changed = True
+        else:
+            g_log.info('no model config file found: {}'.format(model_fpath))
 
     except NxExc.NxosException as exc:
         g_log.critical("unable to push config: {}".format(exc.message))
