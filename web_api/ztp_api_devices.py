@@ -54,31 +54,10 @@ def _create_device():
         return jsonify(
             ok=False,
             error_type=str(type(exc)),
-#            message=exc.message,
-            **device_data), 500
+            message=exc.message,
+            data=device_data), 500
 
-    return jsonify(ok=True, **device_data)
-
-
-# @app.route('/api/devices/<os_name>/<serial_number>', methods=['GET'])
-# def _get_device(os_name, serial_number):
-#
-#     db = ztp_db.get_session()
-#     table = ztp_db.Device
-#
-#     q_rsp = find_device(db, table,
-#                         os_name=os_name, serial_number=serial_number)
-#
-#     try:
-#         rec = q_rsp.one()
-#     except:
-#         return jsonify(
-#             ok=False,
-#             message='Not Found',
-#             item=dict(os_name=os_name, serial_number=serial_number)), 400
-#
-#     as_dict = ztp_db.Device.Schema()
-#     return jsonify(as_dict.dump(rec).data)
+    return jsonify(ok=True, data=device_data)
 
 
 @app.route('/api/devices/status', methods=['PUT'])
@@ -104,3 +83,28 @@ def _put_device_status():
             item=rqst_data), 400
 
     return jsonify(ok=True)
+
+
+@app.route('/api/devices', methods=['DELETE'])
+def _delete_devices():
+
+    try:
+        rqst_data = request.get_json()
+        assert(rqst_data['all'] is True)
+
+    except AssertionError:
+        return jsonify(
+            ok=False,
+            message='all must be true for now'), 400
+
+    try:
+        db = ztp_db.get_session()
+        db.query(ztp_db.Device).delete()
+        db.commit()
+
+    except Exception as exc:
+        return jsonify(
+            ok=False,
+            message='unable to delete all records: {}'.format(exc.message)), 400
+
+    return jsonify(ok=True, message='all records deleted')
