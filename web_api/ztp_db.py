@@ -15,6 +15,7 @@ Base = declarative_base()
 class Device(Base):
     Schema = None
     __tablename__ = 'devices'
+
     ip_addr = Column(String(16), primary_key=True)
     os_name = Column(String(16), nullable=False)
     serial_number = Column(String(32))
@@ -29,6 +30,7 @@ class DeviceSchema(ModelSchema):
         model = Device
 
 Device.Schema = DeviceSchema
+
 
 def get_session():
     DBSession = sessionmaker(bind=engine)
