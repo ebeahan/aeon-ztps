@@ -1,6 +1,8 @@
 ---
 - hosts: all
   become: yes
+  vars_files:
+    - install_vars.yml
 
   tasks:
 # --------------------------------------------------------
@@ -18,6 +20,9 @@
 
     - name: add 'admin' to sudoers
       copy: src=sudoers-10-admin dest=/etc/sudoers.d/10-admin mode=440
+
+    - name: Install /etc/network/interfaces
+      template: src=interfaces dest=/etc/network/interfaces
 
 # --------------------------------------------------------
     - name: Update Linux apt-get cache
@@ -39,11 +44,10 @@
         - tftpd
         - tftp
 
-# --------------------------------------------------------
     - copy: src=../requirements.txt dest=/tmp/requirements.txt
     - name: Install python packages (pip)
       pip: requirements=/tmp/requirements.txt
 
 # --------------------------------------------------------
-    - name: Install /etc/network/interfaces
-      copy: src=interfaces dest=/etc/network/interfaces
+    - include: install_tftpd.yml
+    - include: install_dhcpd.yml

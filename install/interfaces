@@ -1,14 +1,12 @@
-# This file describes the network interfaces available on your system
-# and how to activate them. For more information, see interfaces(5).
-
-# The loopback network interface
 auto lo
 iface lo inet loopback
 
-# The primary network interface
-auto eth0
-iface eth0 inet static
-   address 192.168.59.254
-   netmask 255.255.255.0
-   gateway 192.168.59.3
+{% for iface in interfaces %}
+auto {{ iface.name }}
+iface {{ iface.name }} inet static
+   address {{ iface.ip.address }}
+   netmask {{ iface.ip.netmask }}
+   gateway {{ iface.ip.gateway }}
+
+{% endfor %}
 
