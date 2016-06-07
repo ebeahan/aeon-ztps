@@ -1,3 +1,6 @@
 Flask
 requests
 lxml
+SQLAlchemy
+marshmallow-sqlalchemy
+celery

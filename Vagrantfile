@@ -6,6 +6,10 @@ Vagrant.configure(2) do |config|
 
   config.vm.synced_folder ".", "/aeon-ztp", type: "nfs"
 
+  config.vm.synced_folder "../aos-aeon-ztp", "/aos-aeon-ztp",
+     :nfs => true,
+     :linux__nfs_options => ['rw', 'no_subtree_check', 'all_squash', 'sync']
+
   config.vm.synced_folder "../aeon-core", "/aeon-core", 
      :nfs => true,
      :linux__nfs_options => ['rw', 'no_subtree_check', 'all_squash', 'sync']
