@@ -1,0 +1,49 @@
+---
+- hosts: all
+  become: yes
+
+  tasks:
+# --------------------------------------------------------
+    - name: Create the 'admin' group
+      group: name=admin state=present
+
+    - name: Add 'admin' user
+      user: 
+        name: admin
+        state: present
+        groups: admin
+        shell: /bin/bash
+        password:
+            $6$rounds=656000$2jNVVCliDs5XvmZs$eZ4F0WO6d6w5cBoMZ341hbuknOjx3ObhPHcgSR0D76gICz/Cc9IzXcPGaWzMdpiT7Cp.sflfiPhRDROvNH0eF/
+
+    - name: add 'admin' to sudoers
+      copy: src=sudoers-10-admin dest=/etc/sudoers.d/10-admin mode=440
+
+# --------------------------------------------------------
+    - name: Update Linux apt-get cache
+      apt: update_cache=yes
+
+    - name: Install Linux packages
+      apt: name={{ item }} state=present
+      with_items:
+        - build-essential
+        - python-dev
+        - python-pip
+        - libxml2-dev
+        - libxslt-dev
+        - zlib1g-dev
+        - rabbitmq-server
+        - postgresql
+        - postgresql-contrib
+        - xinetd
+        - tftpd
+        - tftp
+
+# --------------------------------------------------------
+    - copy: src=../requirements.txt dest=/tmp/requirements.txt
+    - name: Install python packages (pip)
+      pip: requirements=/tmp/requirements.txt
+
+# --------------------------------------------------------
+    - name: Install /etc/network/interfaces
+      copy: src=interfaces dest=/etc/network/interfaces
