@@ -6,7 +6,7 @@ import ztp_celery
 import ztp_api_devices
 
 
-@app.route('/api/downloads/<filename>', methods=['GET'])
+@app.route('/api/downloads/<path:filename>', methods=['GET'])
 def static_file(filename):
     return send_from_directory('downloads', filename)
 
