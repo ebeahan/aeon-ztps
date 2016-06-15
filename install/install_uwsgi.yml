@@ -1,5 +1,5 @@
 ---
-- name: Install  uwsgi-emperor server config file
+- name: Install uwsgi-emperor server config file
   copy: src=emperor.ini dest=/etc/uwsgi-emperor/emperor.ini mode=644 owner=root group=root
 
 - name: Install uwsgi aeon-ztp site file

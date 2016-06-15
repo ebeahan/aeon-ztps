@@ -5,13 +5,13 @@
 - name: Copy API files over
   copy: src=../api dest=/opt/aeon-ztp owner=aeon group=aeon mode=774
 
-- name: Copy bin files over:
+- name: Copy bin files over
   copy: src=../bin dest=/opt/aeon-ztp owner=aeon group=aeon mode=774
 
-- name: Copy extra opt files over:
+- name: Copy extra opt files over
   copy: src=../etc dest=/opt/aeon-ztp owner=aeon group=aeon mode=774
 
-- name: Copy ztp-scripts to tftpboot:
+- name: Copy ztp-scripts to tftpboot
   copy: src=../ztp-scripts/ dest=/opt/aeon-ztp/tftpboot owner=nobody mode=777   
 
 - name: Create log directory

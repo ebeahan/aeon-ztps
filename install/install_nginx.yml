@@ -1,5 +1,5 @@
 ---
-- name: Install  NGINX server config file
+- name: Install NGINX server config file
   copy: src=nginx.conf dest=/etc/nginx/nginx.conf mode=644 owner=root group=root
 
 - name: Install NGINX aeon-ztp site file
