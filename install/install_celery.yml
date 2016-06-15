@@ -1,0 +1,9 @@
+---
+- name: Install celery init script
+  copy: src=celeryd dest=/etc/init.d mode=755 owner=root group=root
+
+- name: Install celery config file  
+  copy: src=celeryd.conf dest=/etc/default/celeryd mode=644 owner=root group=root
+
+- name: Start the celerd service
+  service: name=celeryd enabled=yes state=started

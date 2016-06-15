@@ -1,9 +1,11 @@
 #!/usr/bin/python
-from flask import Flask, request, send_from_directory
+from flask import request, send_from_directory
+
+from aeon_ztp_app import app
 import ztp_celery
 import ztp_api_devices
-app = Flask('aeon-ztp')
-app.debug = True
+
+__all__ = ['app']
 
 
 @app.route('/api/downloads/<path:filename>', methods=['GET'])

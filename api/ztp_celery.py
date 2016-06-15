@@ -1,15 +1,15 @@
 import subprocess
 
 from celery import Celery
-from aeon-ztp import app
 
 __all__ = ['ztp_bootstrapper']
 
-app.config['CELERY_BROKER_URL'] = 'amqp://'
-app.config['CELERY_RESULT_BACKEND'] = 'rpc://'
+celery_config = dict()
+celery_config['CELERY_BROKER_URL'] = 'amqp://'
+celery_config['CELERY_RESULT_BACKEND'] = 'rpc://'
 
-celery = Celery(app.name, broker=app.config['CELERY_BROKER_URL'])
-celery.conf.update(app.config)
+celery = Celery('aeon-ztp', broker=celery_config['CELERY_BROKER_URL'])
+celery.conf.update(celery_config)
 
 
 @celery.task
