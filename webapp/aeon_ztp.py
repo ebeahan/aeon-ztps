@@ -8,9 +8,9 @@ import ztp_api_devices
 __all__ = ['app']
 
 
-@app.route('/api/downloads/<path:filename>', methods=['GET'])
+@app.route('/downloads/<path:filename>', methods=['GET'])
 def static_file(filename):
-    return send_from_directory('downloads', filename)
+    return send_from_directory('/opt/aeon-ztp/downloads', filename)
 
 
 @app.route('/api/config0/nxos')

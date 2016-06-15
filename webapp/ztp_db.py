@@ -37,5 +37,5 @@ def get_session():
     return DBSession()
 
 
-engine = create_engine('sqlite:///aeon-ztp.db')
+engine = create_engine('sqlite:////opt/aeon-ztp/run/aeon-ztp.db')
 Base.metadata.create_all(engine)

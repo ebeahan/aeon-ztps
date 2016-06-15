@@ -1,15 +1,21 @@
 ---
 - name: Create /opt/aeon-ztp directory
-  file: path=/opt/aeon-ztp state=directory owner=aeon group=aeon mode=774
+  file: path=/opt/aeon-ztp state=directory owner=aeon group=users mode=775
 
-- name: Copy API files over
-  copy: src=../api dest=/opt/aeon-ztp owner=aeon group=aeon mode=774
+- name: Create /opt/aeon-ztp HTTP downloads directory
+  file: path=/opt/aeon-ztp/downloads state=directory owner=aeon group=users mode=775
+
+- name: Create /opt/aeon-ztp/run directory 
+  file: path=/opt/aeon-ztp/run state=directory owner=aeon group=users mode=775
+
+- name: Copy Webapp files over
+  copy: src=../webapp dest=/opt/aeon-ztp owner=aeon group=users mode=775
 
 - name: Copy bin files over
-  copy: src=../bin dest=/opt/aeon-ztp owner=aeon group=aeon mode=774
+  copy: src=../bin dest=/opt/aeon-ztp owner=aeon group=users mode=775
 
 - name: Copy extra opt files over
-  copy: src=../etc dest=/opt/aeon-ztp owner=aeon group=aeon mode=774
+  copy: src=../etc dest=/opt/aeon-ztp owner=aeon group=users mode=775
 
 - name: Copy ztp-scripts to tftpboot
   copy: src=../ztp-scripts/ dest=/opt/aeon-ztp/tftpboot owner=nobody mode=777   
