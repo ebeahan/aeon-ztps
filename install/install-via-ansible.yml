@@ -18,6 +18,7 @@
         state: present
         groups: aeon,adm,admin
         shell: /bin/bash
+        password:  $1$salty$Tv5XtH7LPxoZNyCJ3Z7r0/
 
     - name: Add 'admin' user
       user: 
