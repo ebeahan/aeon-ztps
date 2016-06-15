@@ -1,7 +1,7 @@
 import subprocess
 
 from celery import Celery
-from ztp_flask import app
+from aeon-ztp import app
 
 __all__ = ['ztp_bootstrapper']
 
@@ -18,10 +18,10 @@ def ztp_bootstrapper(os_name, target_ipaddr):
     cmd_args = [
         'nxos-bootstrap',
         '--target %s' % target_ipaddr,
-        '--topdir /home/admin/aeon-ztp/opt',
+        '--topdir /opt/aeon-ztp',
         '-U AEON_TUSER',
         '-P AEON_TPASSWD',
-        '--logfile /home/admin/aztp.log'
+        '--logfile /var/log/aeon-ztp/bootstrapper.log'
     ]
 
     cmd_str = ' '.join(cmd_args)

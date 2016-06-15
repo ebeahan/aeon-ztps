@@ -3,10 +3,10 @@
   copy: src=tftp dest=/etc/xinetd.d mode=644 owner=root group=root
 
 - name: Create /tftpboot directory
-  file: path=/tftpboot state=directory owner=nobody mode=777
+  file: path=/opt/aeon-ztp/tftpboot state=directory owner=nobody mode=777
 
 - name: Copy NXOS POAP script to TFTP
-  copy: src=../ztp-scripts/{{ item }} dest=/tftpboot owner=nobody mode=777
+  copy: src=../ztp-scripts/{{ item }} dest=/opt/aeon-ztp/tftpboot owner=nobody mode=777
   with_items:
     - ztp-nxos.py
     - poap-md5sum

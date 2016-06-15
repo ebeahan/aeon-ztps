@@ -1,9 +1,9 @@
-#!/usr/bin/env python
-
-from flask import request, send_from_directory
-from ztp_flask import app, manager
+#!/usr/bin/python
+from flask import Flask, request, send_from_directory
 import ztp_celery
 import ztp_api_devices
+app = Flask('aeon-ztp')
+app.debug = True
 
 
 @app.route('/api/downloads/<path:filename>', methods=['GET'])
@@ -22,6 +22,3 @@ def nxos_register(os_name):
     ztp_celery.ztp_bootstrapper.delay(os_name=os_name, target_ipaddr=from_ipaddr)
     return ""
 
-
-if '__main__' == __name__:
-    manager.run()

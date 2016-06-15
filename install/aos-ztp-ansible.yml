@@ -22,8 +22,21 @@
         password:
             $6$rounds=656000$2jNVVCliDs5XvmZs$eZ4F0WO6d6w5cBoMZ341hbuknOjx3ObhPHcgSR0D76gICz/Cc9IzXcPGaWzMdpiT7Cp.sflfiPhRDROvNH0eF/
 
-    - name: add 'admin' to sudoers
+    - name: add 'aeon' group
+      group: name=aeon state=present
+
+    - name: add 'aeon' user
+      user:
+        name: aeon
+        state: present
+        groups: aeon,adm,sudo,admin
+	shell: /bin/bash
+
+    - name: update sudoers
       copy: src=etc/sudoers-10-admin dest=/etc/sudoers.d/10-admin mode=440
+
+    - name: update sudoers
+      copy: src=etc/sudoers-20-aeon dest=/etc/sudoers.d/20-aeon mode=440
 
 # --------------------------------------------------------
     - name: install the standard dnsmasq first ...
@@ -77,11 +90,22 @@
 
 # --------------------------------------------------------
     - name: Install HTTP server
-      apt: name=lighttpd state=present
+      apt: name=nginx-full state=present
 
     - name: Install HTTP files
       copy: src=www dest=/var owner=admin group=admin
 
+# --------------------------------------------------------
+    - name: Install uWSGI
+      apt: name=uwsgi state=present
+    
+    - name: Install uWSGI emperor
+      apt: name=uwsgi-emperor state=present
+
+    - name: Install uWSGI python plugin
+      apt: name=uwsgi-plugin-python state=present
+# --------------------------------------------------------
+   
 # --------------------------------------------------------
     - name: Install TFTP server
       apt: name={{ item }} state=present

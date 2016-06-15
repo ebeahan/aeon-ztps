@@ -3,7 +3,7 @@ from flask import request, jsonify
 from sqlalchemy import and_ as SQL_AND
 from sqlalchemy.orm.exc import NoResultFound
 
-from ztp_flask import app
+from aeon-ztp import app
 import ztp_db
 
 

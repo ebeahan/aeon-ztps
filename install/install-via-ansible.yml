@@ -8,6 +8,16 @@
 # --------------------------------------------------------
     - name: Create the 'admin' group
       group: name=admin state=present
+    
+    - name: Create the 'aeon' group
+      group: name=aeon state=present
+
+    - name: Create 'aeon' user
+      user:
+        name: aeon
+        state: present
+        groups: aeon,adm,admin
+        shell: /bin/bash
 
     - name: Add 'admin' user
       user: 
@@ -20,6 +30,9 @@
 
     - name: add 'admin' to sudoers
       copy: src=sudoers-10-admin dest=/etc/sudoers.d/10-admin mode=440
+
+    - name: add 'aeon' to sudoers
+      copy: src=sudoers-20-aeon dest=/etc/sudoers.d/20-aeon mode=440
 
     - name: Install /etc/network/interfaces
       template: src=interfaces dest=/etc/network/interfaces
@@ -43,11 +56,19 @@
         - xinetd
         - tftpd
         - tftp
+        - libfcgi
+        - nginx-full
+        - uwsgi
+        - uwsgi-emperor
+        - uwsgi-plugin-python
 
     - copy: src=../requirements.txt dest=/tmp/requirements.txt
     - name: Install python packages (pip)
       pip: requirements=/tmp/requirements.txt
 
 # --------------------------------------------------------
+    - include: filepaths.yml
     - include: install_tftpd.yml
     - include: install_dhcpd.yml
+    - include: install_nginx.yml
+    - include: install_uwsgi.yml

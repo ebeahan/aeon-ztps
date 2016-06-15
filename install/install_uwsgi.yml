@@ -1,0 +1,10 @@
+---
+- name: Install  uwsgi-emperor server config file
+  copy: src=emperor.ini dest=/etc/uwsgi-emperor/emperor.ini mode=644 owner=root group=root
+
+- name: Install uwsgi aeon-ztp site file
+  copy: src=uwsgi.aeon-ztp.ini dest=/etc/uwsgi-emperor/vassals/aeon-ztp.ini mode=644 owner=root group=root
+
+- name: Copy systemd service file
+  copy: src=emperor.uwsgi.service dest=/etc/systemd/system/emperor.uwsgi.service mode=644 owner=root group=root
+
