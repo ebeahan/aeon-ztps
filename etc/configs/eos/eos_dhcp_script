@@ -1,0 +1,31 @@
+#!/bin/bash
+
+# Replace _ with /
+INTF=`echo $interface | sed 's/_/\//'`
+
+# User to configure the commands as
+USER=admin
+
+echo dhclient script running for $INTF, reason $reason
+if [ $reason = "PREINIT" ]; then
+   # Nothign to do - we know dhclient is only run
+   # after we detect that the interface is up
+   true
+elif [ $reason = "BOUND" ] || [ $reason = "RENEW" ] || [ $reason = "REBOOT" ] || [ $reason = "REBIND" ]; then
+   ip_addr=$new_ip_address
+   subnet=$new_subnet_mask
+   gateway=${new_routers%% *}
+   echo Acquired lease on IP address on $INTF
+   FastCli -p15 -c"enable
+configure terminal
+ip route vrf management 0.0.0.0/0 $gateway
+interface $INTF
+ip address $ip_addr $subnet"
+elif [ $reason = "EXPIRE" ] || [ $reason = "FAIL" ] || [ $reason = "TIMEOUT" ] || [ $reason = "STOP" ]; then
+   echo Unable to acquire or lost lease on IP address
+   echo Removing configuration from $INTF
+   FastCli -p15 -c"configure terminal
+interface $INTF
+no ip address"
+fi
+

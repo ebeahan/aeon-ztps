@@ -7,7 +7,7 @@ import re
 # get the ZTP server IP address from the logs.  no other way right now
 
 server = re.findall("Script Server: (.*)\n", cli("show logging last 1000"))[-1]
-server = "%s:5000" % server
+server = "%s:8080" % server
 
 # get the loaded image file name
 

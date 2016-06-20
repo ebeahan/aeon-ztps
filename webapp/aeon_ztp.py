@@ -13,9 +13,9 @@ def static_file(filename):
     return send_from_directory('/opt/aeon-ztp/downloads', filename)
 
 
-@app.route('/api/config0/nxos')
-def nxos_bootconf():
-    return send_from_directory('static', 'nxos-config0.conf')
+@app.route('/api/bootconf/<os_name>')
+def nxos_bootconf(os_name):
+    return send_from_directory('static', '%s-boot.conf' % os_name)
 
 
 @app.route('/api/register/<os_name>', methods=['GET', 'POST'])

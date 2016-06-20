@@ -1,0 +1,34 @@
+#!/bin/sh
+
+PIDFILE=/var/run/dhclient.$INTF.pid
+LEASEFILE=/var/lib/dhclient/dhclient.$INTF.leases
+
+DHCLIENTSCRIPT="/mnt/flash/aos/eos_dhcp_script"
+
+KERNELINTF=$INTF
+KERNELINTF=`echo $KERNELINTF | sed 's/Management/ma/'`
+KERNELINTF=`echo $KERNELINTF | sed 's/Management/et/'`
+KERNELINTF=`echo $KERNELINTF | sed 's/\//_/'`
+
+startdhclient()
+{
+   dhclient -pf $PIDFILE -lf $LEASEFILE -sf $DHCLIENTSCRIPT $KERNELINTF
+}
+
+stopdhclient()
+{
+   dhclient -pf $PIDFILE -lf $LEASEFILE -sf $DHCLIENTSCRIPT -x $KERNELINTF
+}
+
+if [ $OPERSTATE = "linkdown" ]; then
+   echo $INTF \($KERNELINTF\) is down, stopping dhclient
+   stopdhclient
+elif [ $OPERSTATE = "linkup" ]; then
+   echo $INTF \($KERNELINTF\) is up, starting dhclient
+   startdhclient
+   # dhclient start may fail if the script is already running,
+   # don't want the script to exit with an error code
+   true
+else
+   echo $INTF \($KERNELINTF\) in unknown state $OPERSTATE
+fi
