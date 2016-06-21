@@ -11,14 +11,16 @@ celery_config['CELERY_RESULT_BACKEND'] = 'rpc://'
 celery = Celery('aeon-ztp', broker=celery_config['CELERY_BROKER_URL'])
 celery.conf.update(celery_config)
 
+_AEON_DIR = '/opt/aeon-ztp'
+
 
 @celery.task
 def ztp_bootstrapper(os_name, target_ipaddr):
 
     cmd_args = [
-        'nxos-bootstrap',
+        '%s/bin/%s-bootstrap' % (_AEON_DIR, os_name),
         '--target %s' % target_ipaddr,
-        '--topdir /opt/aeon-ztp',
+        '--topdir %s' % _AEON_DIR,
         '-U AEON_TUSER',
         '-P AEON_TPASSWD',
         '--logfile /var/log/aeon-ztp/bootstrapper.log'
@@ -28,7 +30,8 @@ def ztp_bootstrapper(os_name, target_ipaddr):
 
     # must pass command as a single string; using shell=True
 
-    this = subprocess.Popen(cmd_str, shell=True,
+    this = subprocess.Popen(
+        cmd_str, shell=True,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     print "starting bootstrapper[pid={pid}] [{cmd_str}]".format(

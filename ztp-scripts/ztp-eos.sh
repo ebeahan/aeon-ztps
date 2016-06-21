@@ -1,15 +1,5 @@
 #!/bin/bash
 
-# Extract the Aeon ZTP server IP address from /var/log/messages.
-# Hardcode the Aeon ZTP server port-number
-
-SERVER=$(sudo awk '/CONFIG_DOWNLOAD:/ {print $NF}' /var/log/messages | cut --delimiter=/ -f3)
-SERVER_PORT=8080
-
-HTTP="http://${SERVER}:${SERVER_PORT}"
-HTTP_DL="${HTTP}/downloads"
-HTTP_API="${HTTP}/api"
-
 ## trap and print what failed
 
 function error () {
@@ -18,14 +8,43 @@ function error () {
 }
 trap error ERR
 
-# These scripts function to setup the management IP address in the configuration
-# file based on the DHCP response.  The /var/log/messages file contains this
-# information as well, so we could remove these scripts if we extract the
-# values from the /var/log/messages file.  TODO
+# Extract the Aeon ZTP server IP address from /var/log/messages.
+# Hard code the Aeon ZTP server port-number
 
-sudo wget -O /mnt/flash/eos_dhcp_script ${HTTP_DL}/eos/eos_dhcp_script
-sudo wget -O /mnt/flash/dhcp_intf_script ${HTTP_DL}/eos/dhcp_intf_script
-sudo wget -O /mnt/flash/promisc_ma1_script ${HTTP_DL}/eos/promisc_ma1_script
+SERVER_PORT=8080
 
-sudo wget -O /mnt/flash/startup-config ${HTTP_API}/bootconf/eos
-sudo reboot
+
+DHCP_SUCCESS=$(grep -m1 DHCP_SUCCESS /var/log/messages)
+
+# example output:
+# ---------------
+# Jun 21 13:28:07 localhost ZeroTouch: %ZTP-5-DHCP_SUCCESS: DHCP response received on Management1
+# [ Ip Address: 172.20.68.50/24; Gateway: 172.20.68.1; Boot File: tftp://172.20.68.4/ztp-eos.sh ]
+
+INTF=$(echo ${DHCP_SUCCESS} | gawk 'match($0, /received on ([^ ]+)/,arr){ print arr[1]}')
+IP_ADDR=$(echo ${DHCP_SUCCESS} | gawk 'match($0, /Ip Address: ([^;]+)/,arr){ print arr[1]}')
+GATEWAY=$(echo ${DHCP_SUCCESS} | gawk 'match($0, /Gateway: ([^;]+)/,arr){ print arr[1]}')
+BOOTFILE=$(echo ${DHCP_SUCCESS} | gawk 'match($0, /Boot File: ([^ ]+)/,arr){ print arr[1]}')
+
+SERVER=$(echo ${BOOTFILE} | cut --delimiter=/ -f3)
+
+HTTP="http://${SERVER}:${SERVER_PORT}"
+HTTP_DL="${HTTP}/downloads"
+HTTP_API="${HTTP}/api"
+
+wget -O /dev/null ${HTTP_API}/register/eos
+
+CLI="FastCli -p15 -c"
+
+${CLI} "enable
+copy ${HTTP_API}/bootconf/eos running"
+
+${CLI} "configure terminal
+ip route vrf management 0.0.0.0/0 $GATEWAY
+interface $INTF
+vrf forwarding management
+ip address $IP_ADDR"
+
+${CLI} "copy run start"
+
+exit 0
