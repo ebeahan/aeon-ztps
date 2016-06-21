@@ -1,27 +1,23 @@
 ---
-- name: Create /opt/aeon-ztp directory
-  file: path=/opt/aeon-ztp state=directory owner=aeon group=users mode=775
-
-- name: Create /opt/aeon-ztp HTTP downloads directory
-  file: path=/opt/aeon-ztp/downloads state=directory owner=aeon group=users mode=775
-
-- name: Create /opt/aeon-ztp/run directory 
-  file: path=/opt/aeon-ztp/run state=directory owner=aeon group=users mode=775
+- name: Create Aeon-ZTP directories
+  file: path={{ item }} state=directory owner=aeon group=users mode=775
+  with_items:
+    - "{{ AEON_DIR }}"
+    - "{{ AEON_DIR }}/downloads"
+    - "{{ AEON_DIR }}/run"
+    - /var/log/aeon-ztp
+    - /var/run/aeon-ztp
 
 - name: Copy Webapp files over
-  copy: src=../webapp dest=/opt/aeon-ztp owner=aeon group=users mode=775
+  copy: src=../webapp dest={{ AEON_DIR }} owner=aeon group=aeon mode=755
 
 - name: Copy bin files over
-  copy: src=../bin dest=/opt/aeon-ztp owner=aeon group=users mode=775
+  copy: src=../bin dest={{ AEON_DIR }} owner=aeon group=aeon mode=755
 
 - name: Copy extra opt files over
-  copy: src=../etc dest=/opt/aeon-ztp owner=aeon group=users mode=775
+  copy: src=../etc dest={{ AEON_DIR }} owner=aeon group=aeon mode=755
 
 - name: Copy ztp-scripts to tftpboot
-  copy: src=../ztp-scripts/ dest=/opt/aeon-ztp/tftpboot owner=nobody mode=777   
+  copy: src=../ztp-scripts/ dest={{ AEON_DIR }}/tftpboot owner=nobody mode=777
 
-- name: Create log directory
-  file: path=/var/log/aeon-ztp state=directory owner=aeon group=adm mode=755
 
-- name: Create run directory
-  file: path=/var/run/aeon-ztp state=directory owner=aeon group=adm mode=755

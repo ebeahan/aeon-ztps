@@ -1,6 +1,9 @@
 ---
 - hosts: all
   become: yes
+  vars:
+    - AEON_DIR: /opt/aeon-ztp
+
   vars_files:
     - install_vars.yml
 
@@ -64,12 +67,12 @@
         - uwsgi-plugin-python
         - rsync
 
-    - name: Install Ansible
-      pip: name=ansible version=1.9.2
-
     - copy: src=../requirements.txt dest=/tmp/requirements.txt
     - name: Install python packages (pip)
       pip: requirements=/tmp/requirements.txt
+
+#    - name: Install Ansible
+#      pip: name=ansible version=1.9.2
 
 # --------------------------------------------------------
     - include: filepaths.yml
