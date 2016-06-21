@@ -62,6 +62,10 @@
         - uwsgi
         - uwsgi-emperor
         - uwsgi-plugin-python
+        - rsync
+
+    - name: Install Ansible
+      pip: name=ansible version=1.9.2
 
     - copy: src=../requirements.txt dest=/tmp/requirements.txt
     - name: Install python packages (pip)
