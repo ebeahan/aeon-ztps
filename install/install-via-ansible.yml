@@ -45,6 +45,9 @@
         - build-essential
         - man
         - vim
+        - libyaml-0-2
+        - libyaml-dev
+        - git
         - python-dev
         - python-pip
         - libxml2-dev
@@ -61,6 +64,7 @@
         - uwsgi
         - uwsgi-emperor
         - uwsgi-plugin-python
+        
 
     - copy: src=../requirements.txt dest=/tmp/requirements.txt
     - name: Install python packages (pip)
