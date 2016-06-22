@@ -1,4 +1,7 @@
 ---
+- name: Copy aeon-ztp conf file
+  copy: src=aeon-ztp.conf dest=/etc/aeon-ztp.conf owner=root group=root mode=644
+
 - name: Create /opt/aeon-ztp directory
   file: path=/opt/aeon-ztp state=directory owner=aeon group=users mode=775
 
