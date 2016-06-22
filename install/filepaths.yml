@@ -1,4 +1,5 @@
 ---
+<<<<<<< HEAD
 - name: Create Aeon-ZTP directories
   file: path={{ item }} state=directory owner=aeon group=users mode=775
   with_items:
@@ -8,14 +9,17 @@
     - /var/log/aeon-ztp
     - /var/run/aeon-ztp
 
-- name: Copy Webapp files over
+- name: Copy aeon-ztp conf file
+  copy: src=aeon-ztp.conf dest=/etc/aeon-ztp.conf owner=root group=root mode=644
+
+- name: Copy webapp files over
   copy: src=../webapp dest={{ AEON_DIR }} owner=aeon group=aeon mode=755
 
 - name: Copy bin files over
-  copy: src=../bin dest={{ AEON_DIR }} owner=aeon group=aeon mode=755
-
-- name: Copy extra opt files over
-  copy: src=../etc dest={{ AEON_DIR }} owner=aeon group=aeon mode=755
+  copy: src={{ item }} dest={{ AEON_DIR }} owner=aeon group=aeon mode=755
+  with_items:
+    - ../bin
+    - ../etc
 
 - name: Copy ztp-scripts to tftpboot
   copy: src=../ztp-scripts/ dest={{ AEON_DIR }}/tftpboot owner=nobody mode=777

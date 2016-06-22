@@ -19,9 +19,9 @@
       user:
         name: aeon
         state: present
-        groups: aeon,adm,admin
-        shell: /bin/bash
-        password:  $1$salty$Tv5XtH7LPxoZNyCJ3Z7r0/
+        system: yes
+        createhome: no
+        
 
     - name: Add 'admin' user
       user: 
@@ -35,9 +35,6 @@
     - name: add 'admin' to sudoers
       copy: src=sudoers-10-admin dest=/etc/sudoers.d/10-admin mode=440
 
-    - name: add 'aeon' to sudoers
-      copy: src=sudoers-20-aeon dest=/etc/sudoers.d/20-aeon mode=440
-
     - name: Install /etc/network/interfaces
       template: src=interfaces dest=/etc/network/interfaces
 
@@ -49,6 +46,11 @@
       apt: name={{ item }} state=present
       with_items:
         - build-essential
+        - man
+        - vim
+        - libyaml-0-2
+        - libyaml-dev
+        - git
         - python-dev
         - python-pip
         - libxml2-dev
@@ -78,3 +80,12 @@
     - include: install_nginx.yml
     - include: install_uwsgi.yml
     - include: install_celery.yml
+
+
+# --------------------------------------------------------
+    - name: Reboot
+      shell: sleep 2 && shutdown -r now
+      async: 1
+      poll: 0
+      ignore_errors: true
+
