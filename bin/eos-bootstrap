@@ -139,19 +139,18 @@ def wait_for_device(countdown, poll_delay):
         except Exception, ProbeError:
             countdown -= poll_delay
             if countdown <= 0:
-                exit_results(dict(
+                exit_results(dev=dev, results=dict(
                     ok=False,
                     error_type='login',
                     message='Failed to probe target %s within reload countdown' % target))
 
         except UnauthorizedError:
-            exit_results(dict(
+            exit_results(dev=dev, results=dict(
                 ok=False,
                 error_type='login',
                 message='Unauthorized - check user/password'))
 
     post_device_facts(dev)
-
     return dev
 
     # msg = 'device reachable, waiting for System ready'
