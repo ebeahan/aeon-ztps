@@ -12,7 +12,6 @@ import requests
 import yaml
 
 from aeon.eos.device import Device
-import aeon.eos.exceptions as DevExc
 from aeon.exceptions import ProbeError, UnauthorizedError
 
 _PROGNAME = 'eos-bootstrap'
@@ -215,7 +214,7 @@ def post_device_status(dev=None, target=None, message=None, state=None):
 # #####
 # ##### -----------------------------------------------------------------------
 
-def do_push_config1(dev):
+def do_push_config(dev):
     topdir = g_cli_args.topdir
     config_dir = os.path.join(topdir, 'etc', 'configs', _OS_NAME)
     all_fpath = os.path.join(config_dir, 'all.conf')
@@ -226,34 +225,34 @@ def do_push_config1(dev):
         dev=dev, state='CONFIG',
         message='applying general config from %s' % config_dir)
 
-    try:
-        if os.path.isfile(all_fpath):
-            g_log.info('reading from: {}'.format(all_fpath))
-            conf = open(all_fpath).read()
-            g_log.info('pushing all config to device')
-            dev.api.exec_config(conf)
-            changed = True
-        else:
-            g_log.info('no all.conf file found')
-
-        if os.path.isfile(model_fpath):
-            g_log.info('reading model config from: {}'.format(model_fpath))
-            conf = open(model_fpath).read()
-            g_log.info('pushing model config to device')
-            dev.api.exec_config(conf)
-            changed = True
-        else:
-            g_log.info('no model config file found: {}'.format(model_fpath))
-
-    except NxExc.NxosException as exc:
-        g_log.critical("unable to push config: {}".format(exc.message))
-        exit_results(dict(
-            ok=False,
-            error_type='config',
-            message=exc.message))
+    # try:
+    #     if os.path.isfile(all_fpath):
+    #         g_log.info('reading from: {}'.format(all_fpath))
+    #         conf = open(all_fpath).read()
+    #         g_log.info('pushing all config to device')
+    #         dev.api.exec_config(conf)
+    #         changed = True
+    #     else:
+    #         g_log.info('no all.conf file found')
+    #
+    #     if os.path.isfile(model_fpath):
+    #         g_log.info('reading model config from: {}'.format(model_fpath))
+    #         conf = open(model_fpath).read()
+    #         g_log.info('pushing model config to device')
+    #         dev.api.exec_config(conf)
+    #         changed = True
+    #     else:
+    #         g_log.info('no model config file found: {}'.format(model_fpath))
+    #
+    # except NxExc.NxosException as exc:
+    #     g_log.critical("unable to push config: {}".format(exc.message))
+    #     exit_results(dict(
+    #         ok=False,
+    #         error_type='config',
+    #         message=exc.message))
 
     if changed is True:
-        dev.api.exec_config("copy run start")
+        dev.api.execute("copy run start")
 
 
 # ##### -----------------------------------------------------------------------
@@ -402,7 +401,7 @@ def main():
 
     g_log.info("proceeding with bootstrap")
 
-    # do_push_config1(dev)
+    do_push_config(dev)
     # dev = do_ensure_os_version(dev)
     # do_finalize(dev)
 

@@ -71,9 +71,6 @@
     - name: Install python packages (pip)
       pip: requirements=/tmp/requirements.txt
 
-#    - name: Install Ansible
-#      pip: name=ansible version=1.9.2
-
 # --------------------------------------------------------
     - include: filepaths.yml
     - include: install_tftpd.yml
