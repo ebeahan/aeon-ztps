@@ -12,7 +12,8 @@ import requests
 import yaml
 
 from aeon.eos.device import Device
-from aeon.exceptions import ProbeError, UnauthorizedError, ConfigError
+from aeon.exceptions import ProbeError, UnauthorizedError
+from aeon.exceptions import ConfigError, CommandError
 
 _PROGNAME = 'eos-bootstrap'
 _PROGVER = '0.0.1'
@@ -328,26 +329,37 @@ def do_os_install(dev, image_name):
     # check for file already on device
     # --------------------------------
 
-    # -------------------------
-    # copy image file to device
-    # -------------------------
+    try:
+        dev.api.execute('dir flash:%s' % image_data['image'])
+        g_log.info('file already exists on device, skipping copy.')
+        has_file = True
+    except CommandError:
+        has_file = False
 
-    cmds = ['routing-context vrf {}'.format(dev.api.VRF_MGMT),
-            'copy http://{server}:{port}/images/{OS}/{filename} flash:'
+    def do_copy_file():
+        # -------------------------
+        # copy image file to device
+        # -------------------------
+
+        cmds = ['routing-context vrf {}'.format(dev.api.VRF_MGMT),
+                'copy http://{server}:{port}/images/{OS}/{filename} flash:'
                 .format(server=get_server_ipaddr(dev.target),
                         port=_API_PORT, OS=_OS_NAME,
                         filename=image_data['image'])]
 
-    try:
-        dev.api.execute(cmds)
-        g_log.info('copy OS image file completed.')
-    except Exception as exc:
-        errmsg = "Unable to copy file to device: %s" % str(exc)
-        g_log.critical(errmsg)
-        exit_results(dev=dev, results=dict(
-            ok=False,
-            error_type='install',
-            message=errmsg))
+        try:
+            dev.api.execute(cmds)
+            g_log.info('copy OS image file completed.')
+        except Exception as exc:
+            errmsg = "Unable to copy file to device: %s" % str(exc)
+            g_log.error(errmsg)
+            exit_results(dev=dev, results=dict(
+                ok=False,
+                error_type='install',
+                message=errmsg))
+
+    if not has_file:
+        do_copy_file()
 
     # -------------------
     # verify MD5 checksum
@@ -358,7 +370,7 @@ def do_os_install(dev, image_name):
     if has_md5 != image_data['md5sum']:
         errmsg = 'image file {filename} MD5 mismatch has={has} should={should}' \
             .format(filename=image_data['image'],
-            has=has_md5, should=image_data['md5sum'])
+                    has=has_md5, should=image_data['md5sum'])
 
         g_log.error(errmsg)
         exit_results(dev=dev, results=dict(
@@ -374,6 +386,7 @@ def do_os_install(dev, image_name):
 
     dev.api.configure(['boot system flash:%s' % image_data['image']])
     dev.api.execute('copy running-config status-config')
+    return image_data['version']
 
 
 def do_ensure_os_version(dev):
@@ -384,14 +397,15 @@ def do_ensure_os_version(dev):
         return dev
 
     g_log.info('software image install required: %s' % os_install['image'])
-    do_os_install(dev, image_name=os_install['image'])
+    new_version = do_os_install(dev, image_name=os_install['image'])
 
     g_log.info('software install OK')
     g_log.info('rebooting device ... please be patient')
 
     post_device_status(
         dev, state='OS-REBOOTING',
-        message='OS install, now rebooting ... please be patient')
+        message='OS install %s completed, now rebooting'
+                ' ... please be patient' % new_version)
 
     dev.api.execute('reload now')
     time.sleep(g_cli_args.init_delay)
@@ -458,7 +472,6 @@ def main():
 
     g_log.info("starting bootstrap process in {} seconds"
                .format(g_cli_args.init_delay))
-
 
     time.sleep(g_cli_args.init_delay)
     dev = wait_for_device(countdown=g_cli_args.reload_delay, poll_delay=10)
