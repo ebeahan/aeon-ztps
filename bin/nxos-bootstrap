@@ -327,7 +327,7 @@ def do_ensure_os_version(dev):
     g_log.info('rebooting device ... please be patient')
 
     post_device_status(
-        dev, state='OS-INSTALLED',
+        dev, state='OS-REBOOTING',
         message='OS install OK, rebooting ... please be patient')
 
     time.sleep(g_cli_args.init_delay)

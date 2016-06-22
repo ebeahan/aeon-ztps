@@ -12,7 +12,7 @@ import requests
 import yaml
 
 from aeon.eos.device import Device
-from aeon.exceptions import ProbeError, UnauthorizedError
+from aeon.exceptions import ProbeError, UnauthorizedError, ConfigError
 
 _PROGNAME = 'eos-bootstrap'
 _PROGVER = '0.0.1'
@@ -34,6 +34,10 @@ psr = argparse.ArgumentParser(
 psr.add_argument(
     '--target', required=True,
     help='hostname or ip_addr of target device')
+
+psr.add_argument(
+    '--server',
+    help='IP or hostname of Aeon server')
 
 psr.add_argument(
     '--topdir', required=True,
@@ -104,7 +108,10 @@ def exit_results(results, exit_error=None, dev=None):
         sys.exit(exit_error or 1)
 
 
-def get_my_ipaddr(dst):
+def get_server_ipaddr(dst):
+    if g_cli_args.server:
+        return g_cli_args.server
+
     dst_s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     dst_s.connect((dst, 0))
     return dst_s.getsockname()[0]
@@ -128,7 +135,7 @@ def wait_for_device(countdown, poll_delay):
         try:
             dev = Device(target, user=user, passwd=passwd, timeout=poll_delay)
 
-        except ProbeError:
+        except Exception, ProbeError:
             countdown -= poll_delay
             if countdown <= 0:
                 exit_results(dict(
@@ -225,34 +232,36 @@ def do_push_config(dev):
         dev=dev, state='CONFIG',
         message='applying general config from %s' % config_dir)
 
-    # try:
-    #     if os.path.isfile(all_fpath):
-    #         g_log.info('reading from: {}'.format(all_fpath))
-    #         conf = open(all_fpath).read()
-    #         g_log.info('pushing all config to device')
-    #         dev.api.exec_config(conf)
-    #         changed = True
-    #     else:
-    #         g_log.info('no all.conf file found')
-    #
-    #     if os.path.isfile(model_fpath):
-    #         g_log.info('reading model config from: {}'.format(model_fpath))
-    #         conf = open(model_fpath).read()
-    #         g_log.info('pushing model config to device')
-    #         dev.api.exec_config(conf)
-    #         changed = True
-    #     else:
-    #         g_log.info('no model config file found: {}'.format(model_fpath))
-    #
-    # except NxExc.NxosException as exc:
-    #     g_log.critical("unable to push config: {}".format(exc.message))
-    #     exit_results(dict(
-    #         ok=False,
-    #         error_type='config',
-    #         message=exc.message))
+    try:
+        if os.path.isfile(all_fpath):
+            g_log.info('reading from: {}'.format(all_fpath))
+            conf = open(all_fpath).read().split('\n')
+            g_log.info('pushing all config to device')
+            dev.api.configure(conf)
+            changed = True
+        else:
+            g_log.info('no all.conf file found')
+
+        if os.path.isfile(model_fpath):
+            g_log.info('reading model config from: {}'.format(model_fpath))
+            conf = open(model_fpath).read().split('\n')
+            g_log.info('pushing model config to device')
+            dev.api.configure(conf)
+            changed = True
+        else:
+            g_log.info('no model config file found: {}'.format(model_fpath))
+
+    except ConfigError as exc:
+        errmsg = str(exc.exc)
+        g_log.critical("unable to push config: {}".format(errmsg))
+        exit_results(dict(
+            ok=False,
+            error_type='config',
+            message=errmsg))
 
     if changed is True:
-        dev.api.execute("copy run start")
+        dev.api.execute(['enable', 'copy running-config startup-config'])
+        g_log.info('config completed OK.')
 
 
 # ##### -----------------------------------------------------------------------
@@ -277,30 +286,94 @@ def check_os_install(dev):
 
 
 def do_os_install(dev, image_name):
+    vendor_dir = os.path.join(g_cli_args.topdir,
+                              'vendor_images', _OS_NAME)
 
-    image_fpath = os.path.join(g_cli_args.topdir,
-                               'etc', 'image-catalog',
-                               image_name)
+    catalog_fpath = os.path.join(vendor_dir, 'catalog.yml')
 
-    image_data = yaml.load(open(image_fpath))
-    msg = 'installing OS version {} from {} ... please be patient'.format(
-        image_data['os_version'], image_data['copy_from'])
+    try:
+        image_catalog = yaml.load(open(catalog_fpath))
 
+    except Exception as exc:
+        errmsg = 'unable to load image catalog: {}'.format(catalog_fpath)
+        g_log.error(errmsg)
+        exit_results(dev=dev, results=dict(
+            ok=False,
+            error_type='install',
+            message=errmsg))
+
+    image_data = image_catalog.get(image_name)
+    if not image_data:
+        errmsg = 'unknown image name {} in catalog {}'.format(image_name, catalog_fpath)
+        g_log.error(errmsg)
+        exit_results(dev=dev, results=dict(
+            ok=False,
+            error_type='install',
+            message=errmsg))
+
+    if not os.path.isfile(os.path.join(vendor_dir, image_data['image'])):
+        errmsg = 'image file {} does not exist'.format(image_data['image'])
+        exit_results(dev=dev, results=dict(
+            ok=False,
+            error_type='install',
+            message=errmsg))
+
+    msg = 'installing OS version={}, file={} ... please be patient'.format(
+        image_data['version'], image_data['image'])
+
+    g_log.info(msg)
     post_device_status(dev=dev, state='OS-INSTALL', message=msg)
 
-    cmd = "nxos-installos --target {target} --server {server} "\
-          "-U {u_env} -P {p_env} --image-profile {profile}"\
-          .format(
-            target=dev.target, server=get_my_ipaddr(dev.target),
-            u_env=g_cli_args.user_var, p_env=g_cli_args.passwd_var,
-            profile=image_fpath)
+    # --------------------------------
+    # check for file already on device
+    # --------------------------------
 
-    if g_cli_args.logfile:
-        cmd += ' --logfile %s' % g_cli_args.logfile
+    # -------------------------
+    # copy image file to device
+    # -------------------------
 
-    child = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-    _stdout, _stderr = child.communicate()
-    return json.loads(_stdout)
+    cmds = ['routing-context vrf {}'.format(dev.api.VRF_MGMT),
+            'copy http://{server}:{port}/images/{OS}/{filename} flash:'
+                .format(server=get_server_ipaddr(dev.target),
+                        port=_API_PORT, OS=_OS_NAME,
+                        filename=image_data['image'])]
+
+    try:
+        dev.api.execute(cmds)
+        g_log.info('copy OS image file completed.')
+    except Exception as exc:
+        errmsg = "Unable to copy file to device: %s" % str(exc)
+        g_log.critical(errmsg)
+        exit_results(dev=dev, results=dict(
+            ok=False,
+            error_type='install',
+            message=errmsg))
+
+    # -------------------
+    # verify MD5 checksum
+    # -------------------
+
+    got_md5 = dev.api.execute('verify /md5 flash:{}'.format(image_data['image']))
+    has_md5 = got_md5['messages'][0].split('=')[-1].strip()
+    if has_md5 != image_data['md5sum']:
+        errmsg = 'image file {filename} MD5 mismatch has={has} should={should}' \
+            .format(filename=image_data['image'],
+            has=has_md5, should=image_data['md5sum'])
+
+        g_log.error(errmsg)
+        exit_results(dev=dev, results=dict(
+            ok=False,
+            error_type='install',
+            message=errmsg))
+
+    g_log.info('md5sum checksum OK.')
+
+    # ---------------------------------------------
+    # configure to use this version for system boot
+    # ---------------------------------------------
+
+    dev.api.configure(['boot system flash:%s' % image_data['image']])
+    dev.api.execute('copy running-config status-config')
 
 
 def do_ensure_os_version(dev):
@@ -311,24 +384,16 @@ def do_ensure_os_version(dev):
         return dev
 
     g_log.info('software image install required: %s' % os_install['image'])
+    do_os_install(dev, image_name=os_install['image'])
 
-    got = do_os_install(dev, image_name=os_install['image'])
-    if not got['ok']:
-        errmsg = 'software install [{ver}] FAILED: {reason}'.format(
-                 ver=os_install['image'], reason=json.dumps(got))
-        g_log.critical(errmsg)
-        exit_results(dict(
-            ok=False,
-            error_type='install',
-            message=errmsg))
-
-    g_log.info('software install OK: %s' % json.dumps(got))
+    g_log.info('software install OK')
     g_log.info('rebooting device ... please be patient')
 
     post_device_status(
-        dev, state='OS-INSTALLED',
-        message='OS install OK, rebooting ... please be patient')
+        dev, state='OS-REBOOTING',
+        message='OS install, now rebooting ... please be patient')
 
+    dev.api.execute('reload now')
     time.sleep(g_cli_args.init_delay)
     return wait_for_device(countdown=g_cli_args.reload_delay, poll_delay=10)
 
@@ -339,35 +404,35 @@ def do_ensure_os_version(dev):
 # #####
 # ##### -----------------------------------------------------------------------
 
-def do_finalize(dev):
-    profile_dir = os.path.join(g_cli_args.topdir, 'etc', 'profiles', 'default', 'nxos')
-
-    finalizer = os.path.join(profile_dir, 'finally')
-    if not os.path.isfile(finalizer):
-        g_log.info('no user provided finally script')
-        return 0
-
-    cmd = '{prog}'.format(prog=finalizer)
-
-    this_env = os.environ.copy()
-    this_env.update(dict(
-        AEON_LOGFILE=g_cli_args.logfile,
-        AEON_TARGET=g_cli_args.target,
-        SERVER=get_my_ipaddr(g_cli_args.target)))
-
-    message = "executing 'finally' script: {cmd}".format(cmd=cmd)
-    post_device_status(dev=dev, state='FINALLY', message=message)
-    g_log.info(message)
-
-    child = subprocess.Popen(
-        cmd, shell=True, env=this_env,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-    _stdout, _stderr = child.communicate()
-    g_log.info("finally stdout=[{}]".format(_stdout))
-    g_log.info("finally stderr=[{}]".format(_stderr))
-
-    return child.returncode
+# def do_finalize(dev):
+#     profile_dir = os.path.join(g_cli_args.topdir, 'etc', 'profiles', 'default', 'nxos')
+#
+#     finalizer = os.path.join(profile_dir, 'finally')
+#     if not os.path.isfile(finalizer):
+#         g_log.info('no user provided finally script')
+#         return 0
+#
+#     cmd = '{prog}'.format(prog=finalizer)
+#
+#     this_env = os.environ.copy()
+#     this_env.update(dict(
+#         AEON_LOGFILE=g_cli_args.logfile,
+#         AEON_TARGET=g_cli_args.target,
+#         SERVER=get_my_ipaddr(g_cli_args.target)))
+#
+#     message = "executing 'finally' script: {cmd}".format(cmd=cmd)
+#     post_device_status(dev=dev, state='FINALLY', message=message)
+#     g_log.info(message)
+#
+#     child = subprocess.Popen(
+#         cmd, shell=True, env=this_env,
+#         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+#
+#     _stdout, _stderr = child.communicate()
+#     g_log.info("finally stdout=[{}]".format(_stdout))
+#     g_log.info("finally stderr=[{}]".format(_stderr))
+#
+#     return child.returncode
 
 
 # ##### -----------------------------------------------------------------------
@@ -379,7 +444,9 @@ def do_finalize(dev):
 def main():
     global g_self_server
 
-    g_self_server = "{}:{}".format(get_my_ipaddr(g_cli_args.target), _API_PORT)
+    g_self_server = "{}:{}".format(
+        get_server_ipaddr(g_cli_args.target),
+        _API_PORT)
 
     post_device_start(g_cli_args.target)
 
@@ -392,9 +459,6 @@ def main():
     g_log.info("starting bootstrap process in {} seconds"
                .format(g_cli_args.init_delay))
 
-    # first wait the init_delay amount of time ... gives the device time
-    # to start the shutdown process; i.e. expect this script to be kicked
-    # off from the NXOS POAP process.
 
     time.sleep(g_cli_args.init_delay)
     dev = wait_for_device(countdown=g_cli_args.reload_delay, poll_delay=10)
@@ -402,11 +466,10 @@ def main():
     g_log.info("proceeding with bootstrap")
 
     do_push_config(dev)
-    # dev = do_ensure_os_version(dev)
-    # do_finalize(dev)
+    do_ensure_os_version(dev)
 
     g_log.info("bootstrap process finished")
-    sys.exit(0)
+    exit_results(dict(ok=True), dev=dev)
 
 if '__main__' == __name__:
     main()

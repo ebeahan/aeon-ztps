@@ -9,8 +9,13 @@ __all__ = ['app']
 
 
 @app.route('/downloads/<path:filename>', methods=['GET'])
-def static_file(filename):
+def download_file(filename):
     return send_from_directory('/opt/aeon-ztp/downloads', filename)
+
+
+@app.route('/images/<path:filename>', methods=['GET'])
+def get_vendor_file(filename):
+    return send_from_directory('/opt/aeon-ztp/vendor_images', filename)
 
 
 @app.route('/api/bootconf/<os_name>')
