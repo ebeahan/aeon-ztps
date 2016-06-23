@@ -415,41 +415,7 @@ def do_ensure_os_version(dev):
     return wait_for_device(countdown=g_cli_args.reload_delay, poll_delay=10)
 
 
-# ##### -----------------------------------------------------------------------
-# #####
-# #####                           'finally' script
-# #####
-# ##### -----------------------------------------------------------------------
 
-# def do_finalize(dev):
-#     profile_dir = os.path.join(g_cli_args.topdir, 'etc', 'profiles', 'default', 'nxos')
-#
-#     finalizer = os.path.join(profile_dir, 'finally')
-#     if not os.path.isfile(finalizer):
-#         g_log.info('no user provided finally script')
-#         return 0
-#
-#     cmd = '{prog}'.format(prog=finalizer)
-#
-#     this_env = os.environ.copy()
-#     this_env.update(dict(
-#         AEON_LOGFILE=g_cli_args.logfile,
-#         AEON_TARGET=g_cli_args.target,
-#         SERVER=get_my_ipaddr(g_cli_args.target)))
-#
-#     message = "executing 'finally' script: {cmd}".format(cmd=cmd)
-#     post_device_status(dev=dev, state='FINALLY', message=message)
-#     g_log.info(message)
-#
-#     child = subprocess.Popen(
-#         cmd, shell=True, env=this_env,
-#         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-#
-#     _stdout, _stderr = child.communicate()
-#     g_log.info("finally stdout=[{}]".format(_stdout))
-#     g_log.info("finally stderr=[{}]".format(_stderr))
-#
-#     return child.returncode
 
 
 # ##### -----------------------------------------------------------------------

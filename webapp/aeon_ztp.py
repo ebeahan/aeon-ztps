@@ -26,6 +26,12 @@ def nxos_bootconf(os_name):
 @app.route('/api/register/<os_name>', methods=['GET', 'POST'])
 def nxos_register(os_name):
     from_ipaddr = request.args.get('ipaddr') or request.remote_addr
-    ztp_celery.ztp_bootstrapper.delay(os_name=os_name, target_ipaddr=from_ipaddr)
+    ztp_celery.ztp_bootstrapper.delay(os_name=os_name, target=from_ipaddr)
     return ""
 
+
+@app.route('/api/finalizer/<os_name>', methods=['GET', 'POST'])
+def api_finalizer(os_name):
+    from_ipaddr = request.args.get('ipaddr') or request.remote_addr
+    ztp_celery.ztp_finalizer.delay(os_name=os_name, target=from_ipaddr)
+    return "OK"
