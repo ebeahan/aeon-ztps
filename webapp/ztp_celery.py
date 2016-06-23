@@ -42,3 +42,4 @@ def ztp_bootstrapper(os_name, target_ipaddr):
 
     print "rc={}".format(rc)
     print "stdout={}".format(_stdout)
+    print "stderr={}".format(_stderr)

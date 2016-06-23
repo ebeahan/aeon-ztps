@@ -136,7 +136,20 @@ def wait_for_device(countdown, poll_delay):
         try:
             dev = Device(target, user=user, passwd=passwd, timeout=poll_delay)
 
-        except Exception, ProbeError:
+        except CommandError:
+            # this means that the device is probe-able, but unable to use the API
+            # for some reason; likely the process is not yet ready.  need to
+            # 'manually' invoke the poll delay.
+            countdown -= poll_delay
+            if countdown <= 0:
+                exit_results(dev=dev, results=dict(
+                    ok=False,
+                    error_type='login',
+                    message='Failed to access %s device API within reload countdown' % target))
+            time.sleep(poll_delay)
+
+
+        except ProbeError:
             countdown -= poll_delay
             if countdown <= 0:
                 exit_results(dev=dev, results=dict(
@@ -152,30 +165,6 @@ def wait_for_device(countdown, poll_delay):
 
     post_device_facts(dev)
     return dev
-
-    # msg = 'device reachable, waiting for System ready'
-    # post_device_status(dev=dev, state='AWAIT-SYSTEM-READY', message=msg)
-    # g_log.info(msg)
-    #
-    # while countdown >= 0:
-    #     msg = 'ready-countdown at: {} seconds'.format(countdown)
-    #     post_device_status(dev=dev, message=msg)
-    #     g_log.info(msg)
-    #
-    #     try:
-    #         dev.api.exec_opcmd('delete volatile:system_ready', msg_type='cli_show_ascii')
-    #         return dev
-    #     except NxExc.CommandError:
-    #         # means that the file does not exist yet, so wait some time
-    #         # and try again
-    #         time.sleep(poll_delay)
-    #         countdown -= poll_delay
-    #
-    # exit_results(dict(
-    #     ok=False,
-    #     error_type='login',
-    #     message='%s failed to find "System ready" within reload countdown' % target))
-
 
 # ##### -----------------------------------------------------------------------
 # #####
@@ -274,16 +263,31 @@ def check_os_install(dev):
     profile_dir = os.path.join(g_cli_args.topdir, 'etc', 'profiles', 'default', _OS_NAME)
     conf_fpath = os.path.join(profile_dir, 'os-selector.cfg')
 
-    cmd = "aztp-os-selector -m {hw_model} -o '{os_ver}' -c {config}".format(
+    cmd = "{topdir}/bin/aztp-os-selector -m {hw_model} -o '{os_ver}' -c {config}".format(
+        topdir=g_cli_args.topdir,
         hw_model=dev.facts['hw_model'],
         os_ver=dev.facts['os_version'],
         config=conf_fpath)
 
+    g_log.info('os-select: [%s]' % cmd)
+
     child = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
 
     _stdout, _stderr = child.communicate()
-    return json.loads(_stdout)
+    g_log.info('os-select rc={}, stdout={}'.format(child.returncode, _stdout))
+    g_log.info('os-select stderr={}'.format(_stderr))
 
+    try:
+        results = json.loads(_stdout)
+
+    except Exception as exc:
+        errmsg = 'Unable to load os-select output as JSON: {}'.format(_stdout)
+        exit_results(dev=dev, results=dict(
+            ok=False,
+            error_type='config',
+            message=errmsg))
+
+    return results
 
 def do_os_install(dev, image_name):
     vendor_dir = os.path.join(g_cli_args.topdir,
