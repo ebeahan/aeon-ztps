@@ -63,7 +63,7 @@ def do_finalize(os_name, target):
     this_env.update(dict(
         AEON_LOGFILE=_AEON_LOGFILE,
         AEON_TARGET=target,
-        SERVER=my_server_ipaddr))
+        AEON_SERVER=my_server_ipaddr))
 
     message = "executing 'finally' script: {cmd}".format(cmd=cmd)
     log.info(message)

@@ -30,7 +30,7 @@ def nxos_register(os_name):
     return ""
 
 
-@app.route('/api/finalizer/<os_name>', methods=['GET', 'POST'])
+@app.route('/test/finalizer/<os_name>', methods=['GET', 'POST'])
 def api_finalizer(os_name):
     from_ipaddr = request.args.get('ipaddr') or request.remote_addr
     ztp_celery.ztp_finalizer.delay(os_name=os_name, target=from_ipaddr)

@@ -148,7 +148,6 @@ def wait_for_device(countdown, poll_delay):
                     message='Failed to access %s device API within reload countdown' % target))
             time.sleep(poll_delay)
 
-
         except ProbeError:
             countdown -= poll_delay
             if countdown <= 0:
@@ -165,6 +164,7 @@ def wait_for_device(countdown, poll_delay):
 
     post_device_facts(dev)
     return dev
+
 
 # ##### -----------------------------------------------------------------------
 # #####
@@ -413,9 +413,6 @@ def do_ensure_os_version(dev):
     dev.api.execute('reload now')
     time.sleep(g_cli_args.init_delay)
     return wait_for_device(countdown=g_cli_args.reload_delay, poll_delay=10)
-
-
-
 
 
 # ##### -----------------------------------------------------------------------
