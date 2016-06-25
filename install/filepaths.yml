@@ -1,25 +1,28 @@
 ---
-<<<<<<< HEAD
-- name: Create Aeon-ZTP directories
-  file: path={{ item }} state=directory owner=aeon group=users mode=775
+- name: copy aeon-ztp conf file
+  copy: src=aeon-ztp.conf dest=/etc/aeon-ztp.conf owner=root group=root mode=644
+
+- name: create Aeon-ZTP directories
+  file: path={{ item }} state=directory owner={{ USER }} group={{ GROUP }} mode=775
   with_items:
-    - "{{ AEON_DIR }}"
+    - "{{ AEON_DIR }}/etc"
+    - "{{ AEON_DIR }}/bin"
+    - "{{ AEON_DIR }}/vendor_images"
     - "{{ AEON_DIR }}/downloads"
+    - "{{ AEON_DIR }}/logs"
     - "{{ AEON_DIR }}/run"
     - /var/log/aeon-ztp
     - /var/run/aeon-ztp
 
-- name: Copy aeon-ztp conf file
-  copy: src=aeon-ztp.conf dest=/etc/aeon-ztp.conf owner=root group=root mode=644
+- name: copy webapp files over
+  copy: src=../webapp dest={{ AEON_DIR }} owner={{ USER }} group={{ GROUP }} mode=775 directory_mode=775
 
-- name: Copy webapp files over
-  copy: src=../webapp dest={{ AEON_DIR }} owner=aeon group=aeon mode=755
-
-- name: Copy bin files over
-  copy: src={{ item }} dest={{ AEON_DIR }} owner=aeon group=aeon mode=755
+- name: copy aeon-ztp directories over
+  copy: src={{ item }} dest={{ AEON_DIR }} owner={{ USER }} group={{ GROUP }} mode=775 directory_mode=775
   with_items:
     - ../bin
     - ../etc
+    - ../vendor_images
 
 - name: Copy ztp-scripts to tftpboot
   copy: src=../ztp-scripts/ dest={{ AEON_DIR }}/tftpboot owner=nobody mode=777

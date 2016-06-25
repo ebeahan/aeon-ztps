@@ -3,6 +3,8 @@
   become: yes
   vars:
     - AEON_DIR: /opt/aeon-ztp
+    - USER: aeon
+    - GROUP: users
 
   vars_files:
     - install_vars.yml
