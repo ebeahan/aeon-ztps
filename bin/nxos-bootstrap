@@ -20,7 +20,7 @@ from aeon.exceptions import ProbeError, UnauthorizedError
 _PROGNAME = 'nxos-bootstrap'
 _PROGVER = '0.0.1'
 
-_API_PORT = 5000
+_API_PORT = 8080
 
 # ##### -----------------------------------------------------------------------
 # #####
@@ -97,12 +97,12 @@ if g_cli_args.logfile:
 # #####
 # ##### -----------------------------------------------------------------------
 
-def exit_results(results, exit_error=None, dev=None):
+def exit_results(results, exit_error=None, dev=None, target=None):
     if results['ok']:
-        post_device_status(dev=dev, state='DONE', message='bootstrap completed OK')
+        post_device_status(dev=dev, target=target, state='DONE', message='bootstrap completed OK')
         sys.exit(0)
     else:
-        post_device_status(dev=dev, state='FAILED', message=results['message'])
+        post_device_status(dev=dev, target=target, state='FAILED', message=results['message'])
         sys.exit(exit_error or 1)
 
 
@@ -140,10 +140,10 @@ def wait_for_device(countdown, poll_delay):
                     message='Failed to probe target %s within reload countdown' % target))
 
         except UnauthorizedError:
-            exit_results(dict(
-                ok=False,
-                error_type='login',
-                message='Unauthorized - check user/password'))
+            errmsg = 'Unauthorized - check user={}/passwd={}'.format(user, passwd)
+            g_log.error(errmsg)
+            exit_results(target=target, results=dict(
+                ok=False, error_type='login', message=errmsg))
 
     post_device_facts(dev)
 
@@ -266,7 +266,8 @@ def check_os_install(dev):
     profile_dir = os.path.join(g_cli_args.topdir, 'etc', 'profiles', 'default', 'nxos')
     conf_fpath = os.path.join(profile_dir, 'os-selector.cfg')
 
-    cmd = "aztp-os-selector -m {hw_model} -o '{os_ver}' -c {config}".format(
+    cmd = "{topdir}/bin/aztp-os-selector -m {hw_model} -o '{os_ver}' -c {config}".format(
+        topdir=g_cli_args.topdir,
         hw_model=dev.facts['hw_model'],
         os_ver=dev.facts['os_version'],
         config=conf_fpath)
@@ -336,43 +337,6 @@ def do_ensure_os_version(dev):
 
 # ##### -----------------------------------------------------------------------
 # #####
-# #####                           'finally' script
-# #####
-# ##### -----------------------------------------------------------------------
-
-def do_finalize(dev):
-    profile_dir = os.path.join(g_cli_args.topdir, 'etc', 'profiles', 'default', 'nxos')
-
-    finalizer = os.path.join(profile_dir, 'finally')
-    if not os.path.isfile(finalizer):
-        g_log.info('no user provided finally script')
-        return 0
-
-    cmd = '{prog}'.format(prog=finalizer)
-
-    this_env = os.environ.copy()
-    this_env.update(dict(
-        AEON_LOGFILE=g_cli_args.logfile,
-        AEON_TARGET=g_cli_args.target,
-        SERVER=get_my_ipaddr(g_cli_args.target)))
-
-    message = "executing 'finally' script: {cmd}".format(cmd=cmd)
-    post_device_status(dev=dev, state='FINALLY', message=message)
-    g_log.info(message)
-
-    child = subprocess.Popen(
-        cmd, shell=True, env=this_env,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-    _stdout, _stderr = child.communicate()
-    g_log.info("finally stdout=[{}]".format(_stdout))
-    g_log.info("finally stderr=[{}]".format(_stderr))
-
-    return child.returncode
-
-
-# ##### -----------------------------------------------------------------------
-# #####
 # #####                           !!! MAIN !!!
 # #####
 # ##### -----------------------------------------------------------------------
@@ -404,7 +368,6 @@ def main():
 
     do_push_config1(dev)
     dev = do_ensure_os_version(dev)
-    do_finalize(dev)
 
     g_log.info("bootstrap process finished")
     exit_results(dict(ok=True), dev=dev)

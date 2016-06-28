@@ -29,7 +29,7 @@
       user: 
         name: admin
         state: present
-        groups: admin
+        groups: users
         shell: /bin/bash
         password:
             $6$rounds=656000$2jNVVCliDs5XvmZs$eZ4F0WO6d6w5cBoMZ341hbuknOjx3ObhPHcgSR0D76gICz/Cc9IzXcPGaWzMdpiT7Cp.sflfiPhRDROvNH0eF/
@@ -48,19 +48,19 @@
       apt: name={{ item }} state=present
       with_items:
         - build-essential
-        - man
+#        - man
         - vim
-        - libyaml-0-2
-        - libyaml-dev
-        - git
+#        - libyaml-0-2
+#        - libyaml-dev
+#        - git
         - python-dev
         - python-pip
         - libxml2-dev
         - libxslt-dev
         - zlib1g-dev
         - rabbitmq-server
-        - postgresql
-        - postgresql-contrib
+#        - postgresql
+#        - postgresql-contrib
         - xinetd
         - tftpd
         - tftp

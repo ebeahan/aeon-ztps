@@ -15,7 +15,7 @@ celery_config['CELERY_RESULT_BACKEND'] = 'rpc://'
 celery = Celery('aeon-ztp', broker=celery_config['CELERY_BROKER_URL'])
 celery.conf.update(celery_config)
 
-_AEON_PORT = 8080
+_AEON_PORT = '8080'
 _AEON_DIR = '/opt/aeon-ztp'
 _AEON_LOGFILE = '/var/log/aeon-ztp/bootstrapper.log'
 
