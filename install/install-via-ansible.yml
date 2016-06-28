@@ -2,6 +2,7 @@
 - hosts: all
   become: yes
   vars:
+    - HOSTNAME: aeon-ztps
     - AEON_DIR: /opt/aeon-ztp
     - USER: aeon
     - GROUP: users
@@ -9,8 +10,11 @@
   vars_files:
     - install_vars.yml
 
-  tasks:
 # --------------------------------------------------------
+  tasks:
+    - name: setup the device hostname
+      hostname: name={{ HOSTNAME }}
+
     - name: Create the 'admin' group
       group: name=admin state=present
     
@@ -23,7 +27,6 @@
         state: present
         system: yes
         createhome: no
-        
 
     - name: Add 'admin' user
       user: 

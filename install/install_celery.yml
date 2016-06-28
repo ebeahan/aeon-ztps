@@ -5,3 +5,5 @@
 - name: Install celery config file  
   copy: src=celeryd.conf dest=/etc/default/celeryd mode=644 owner=root group=root
 
+- name: Enable the celery service
+  service: name=celeryd enabled=yes
