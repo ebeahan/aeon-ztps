@@ -28,7 +28,7 @@ def find_device(db, table, dev_data):
         table.ip_addr == dev_data['ip_addr']))
 
 
-def last_update():
+def time_now():
     now = datetime.now()
     return datetime.isoformat(now)
 
@@ -53,7 +53,8 @@ def _create_device():
     # now try to add the new device to the database
 
     try:
-        db.add(table(last_update=last_update(), **device_data))
+        db.add(table(created_at=time_now(), updated_at=time_now(),
+                     **device_data))
         db.commit()
 
     except Exception as exc:
@@ -80,7 +81,7 @@ def _put_device_status():
             rec.state = rqst_data['state']
 
         rec.message = rqst_data.get('message')
-        rec.last_update = last_update()
+        rec.updated_at = time_now()
         db.commit()
 
     except NoResultFound:

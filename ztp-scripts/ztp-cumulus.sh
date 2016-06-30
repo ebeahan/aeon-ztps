@@ -19,8 +19,9 @@ echo "Aeon-ZTP auto-provision from: ${HTTP}"
 echo "-------------------------------------"
 echo ""
 
-function set_cumulus_passwd(){
+function setup_user_cumulus(){
    usermod -p $(echo $1 | openssl passwd -1 -stdin) cumulus
+   echo "cumulus ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/cumulus
 }
 
 function install_license(){
@@ -42,7 +43,7 @@ function kickstart_aeon_ztp(){
     wget -O /dev/null ${HTTP}/api/register/cumulus
 }
 
-set_cumulus_passwd "admin"
+setup_user_cumulus "admin"
 install_vrf
 install_license
 kickstart_aeon_ztp

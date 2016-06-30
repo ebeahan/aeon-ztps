@@ -20,12 +20,29 @@ _AEON_DIR = '/opt/aeon-ztp'
 _AEON_LOGFILE = '/var/log/aeon-ztp/bootstrapper.log'
 
 
+def get_server_ipaddr(dst):
+    dst_s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    dst_s.connect((dst, 0))
+    return dst_s.getsockname()[0]
+
+
 def post_device_status(server, target, os_name, message=None, state=None):
     requests.put(
         url='http://%s/api/devices/status' % server,
         json=dict(
             os_name=os_name, ip_addr=target,
             state=state, message=message))
+
+
+def post_device_registered(target, os_name):
+    server = "{}:{}".format(get_server_ipaddr(target), _AEON_PORT)
+
+    requests.post(
+        url='http://%s/api/devices' % server,
+        json=dict(
+            ip_addr=target, os_name=os_name,
+            state='REGISTERED',
+            message='device registered, waiting for bootstrap start'))
 
 
 def setup_logging(logname, logfile, target):
@@ -37,12 +54,6 @@ def setup_logging(logname, logfile, target):
     fh.setFormatter(fmt)
     log.addHandler(fh)
     return log
-
-
-def get_server_ipaddr(dst):
-    dst_s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    dst_s.connect((dst, 0))
-    return dst_s.getsockname()[0]
 
 
 def do_finalize(os_name, target):
@@ -118,8 +129,11 @@ def do_bootstrapper(os_name, target):
 
     return rc
 
+
 @celery.task
 def ztp_bootstrapper(os_name, target):
+
+    post_device_registered(os_name=os_name, target=target)
 
     rc = do_bootstrapper(os_name=os_name, target=target)
     if 0 != rc:
