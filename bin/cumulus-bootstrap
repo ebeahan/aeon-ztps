@@ -182,7 +182,13 @@ def wait_for_device(countdown, poll_delay):
             dev = Device(target, user=user, passwd=passwd,
                          timeout=poll_delay)
 
-        except (ProbeError, LoginNotReadyError) as exc:
+        except UnauthorizedError:
+            exit_results(dev=dev, results=dict(
+                ok=False,
+                error_type='login',
+                message='Unauthorized - check user/password'))
+
+        except Exception:                # TODO: fix this broad exception
             countdown -= poll_delay
             if countdown <= 0:
                 exit_results(dev=dev, results=dict(
@@ -190,14 +196,8 @@ def wait_for_device(countdown, poll_delay):
                     error_type='login',
                     message='Failed to connect to target %s within reload countdown' % target))
 
-            if isinstance(exc, LoginNotReadyError):
-                time.sleep(poll_delay)
+            time.sleep(poll_delay)
 
-        except UnauthorizedError:
-            exit_results(dev=dev, results=dict(
-                ok=False,
-                error_type='login',
-                message='Unauthorized - check user/password'))
 
     post_device_facts(dev)
     return dev

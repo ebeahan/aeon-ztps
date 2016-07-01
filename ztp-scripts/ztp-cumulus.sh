@@ -26,6 +26,7 @@ function setup_user_cumulus(){
 
 function install_license(){
    /usr/cumulus/bin/cl-license -i ${HTTP}/downloads/cumulus/license
+   service switchd restart
 }
 
 function install_vrf(){
@@ -48,10 +49,8 @@ install_vrf
 install_license
 kickstart_aeon_ztp
 
-reboot
-
 # CUMULUS-AUTOPROVISIONING
-## exit cleanly
 
+## exit cleanly, no reboot
 exit 0
 
