@@ -2,7 +2,7 @@
 - hosts: all
   become: yes
   vars:
-    - HOSTNAME: aeon-ztps
+    - HOSTNAME: aeon-ztp
     - AEON_DIR: /opt/aeon-ztp
     - USER: aeon
     - GROUP: users
@@ -40,8 +40,8 @@
     - name: add 'admin' to sudoers
       copy: src=sudoers-10-admin dest=/etc/sudoers.d/10-admin mode=440
 
-    - name: Install /etc/network/interfaces
-      template: src=interfaces dest=/etc/network/interfaces
+#    - name: Install /etc/network/interfaces
+#      template: src=interfaces dest=/etc/network/interfaces
 
 # --------------------------------------------------------
     - name: Update Linux apt-get cache
@@ -68,9 +68,8 @@
         - tftpd
         - tftp
         - libfcgi
-        - nginx-full
+        - nginx-light
         - uwsgi
-        - uwsgi-emperor
         - uwsgi-plugin-python
         - rsync
 
