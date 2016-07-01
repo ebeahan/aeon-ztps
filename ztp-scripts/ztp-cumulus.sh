@@ -8,6 +8,9 @@ function error () {
 }
 trap error ERR
 
+LOCK_FILE=/mnt/persist/aeon-ztp.lock
+
+
 SERVER_PORT="8080"
 SERVER=$(grep -m 1 dhcp-server /var/lib/dhcp/dhclient.eth0.leases | awk '{ print $3 }' | tr --delete ';')
 
@@ -20,16 +23,29 @@ echo "-------------------------------------"
 echo ""
 
 function setup_user_cumulus(){
-   usermod -p $(echo $1 | openssl passwd -1 -stdin) cumulus
-   echo "cumulus ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/cumulus
+    if [[ ! -e /etc/sudoers.d/cumulus ]]
+    then
+        usermod -p $(echo $1 | openssl passwd -1 -stdin) cumulus
+        echo "cumulus ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/cumulus
+    fi
 }
 
 function install_license(){
-   /usr/cumulus/bin/cl-license -i ${HTTP}/downloads/cumulus/license
-   service switchd restart
+   cl_lic=/usr/cumulus/bin/cl-license
+   lic=$($cl_lic)
+   if [[ $? -ne 0 ]]
+   then
+      $cl_lic -i ${HTTP}/downloads/cumulus/license && service switchd restart
+   fi
 }
 
 function install_vrf(){
+    check=$(dpkg -l | grep -i cl-mgmtvrf)
+    if [[ $? -eq 0 ]]
+    then
+        return
+    fi
+
     wget -O cl-mgmtvrf.deb ${HTTP}/images/cumulus/cl-mgmtvrf.deb
     dpkg -i cl-mgmtvrf.deb
     /usr/sbin/cl-mgmtvrf --enable
@@ -41,7 +57,13 @@ function install_vrf(){
 }
 
 function kickstart_aeon_ztp(){
-    wget -O /dev/null ${HTTP}/api/register/cumulus
+    if [[ ! -e $LOCK_FILE ]]
+    then
+        wget -O /dev/null ${HTTP}/api/register/cumulus
+        touch $LOCK_FILE
+    else
+        rm $LOCK_FILE
+    fi
 }
 
 setup_user_cumulus "admin"
