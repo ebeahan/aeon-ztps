@@ -7,19 +7,11 @@ from aeon_ztp_app import app
 import ztp_db
 
 
-@app.route('/api/devices', methods=['HEAD'])
-def _get_device_count(dev_sn):
-    return "get_device_count {}: OK".format(dev_sn)
-
-
-@app.route('/api/devices', methods=['GET'])
-def _get_all_devices():
-    db = ztp_db.get_session()
-    to_json = ztp_db.Device.Schema()
-
-    return jsonify(
-        items=[to_json.dump(rec).data
-               for rec in db.query(ztp_db.Device).all()])
+# -----------------------------------------------------------------------------
+#
+#                                 Utility Functions
+#
+# -----------------------------------------------------------------------------
 
 
 def find_device(db, table, dev_data):
@@ -28,10 +20,66 @@ def find_device(db, table, dev_data):
         table.ip_addr == dev_data['ip_addr']))
 
 
-def last_update():
+def time_now():
     now = datetime.now()
     return datetime.isoformat(now)
 
+
+# -----------------------------------------------------------------------------
+# #############################################################################
+#
+#                                 API ROUTES
+#
+# #############################################################################
+# -----------------------------------------------------------------------------
+
+
+@app.route('/api/devices', methods=['HEAD'])
+def _get_device_count(dev_sn):
+    return "get_device_count {}: OK".format(dev_sn)
+
+
+# -----------------------------------------------------------------------------
+#                                 GET /api/devices
+# -----------------------------------------------------------------------------
+
+@app.route('/api/devices', methods=['GET'])
+def _get_devices():
+    db = ztp_db.get_session()
+    to_json = ztp_db.Device.Schema()
+
+    arg_ipaddr = request.args.get('ipaddr')
+    arg_os_name = request.args.get('os_name')
+
+    # --------------------
+    # return just one item
+    # --------------------
+
+    if arg_ipaddr and arg_os_name:
+        try:
+
+            rec = find_device(db, ztp_db.Device,
+                              dict(ip_addr=arg_ipaddr, os_name=arg_os_name)).one()
+
+            return jsonify(items=[to_json.dump(rec).data])
+
+        except NoResultFound:
+            return jsonify(
+                ok=False,
+                message='Not Found'), 404
+
+    # ----------------
+    # return all items
+    # ----------------
+
+    return jsonify(
+        items=[to_json.dump(rec).data
+               for rec in db.query(ztp_db.Device).all()])
+
+
+# -----------------------------------------------------------------------------
+#                                 POST /api/devices
+# -----------------------------------------------------------------------------
 
 @app.route('/api/devices', methods=['POST'])
 def _create_device():
@@ -40,12 +88,14 @@ def _create_device():
     db = ztp_db.get_session()
     table = ztp_db.Device
 
-    # first check to see if there is an existing record that matches the
-    # ip_addr/os_name.  if so, then delete it, because we are starting over
+    # check to see if the device already exists, and if it does,
+    # then reject the request
 
     try:
-        db.delete(find_device(db, table, device_data).one())
-        db.commit()
+        find_device(db, table, device_data).one()
+        return jsonify(
+            ok=False, message='already exists',
+            rqst_data=device_data), 400
 
     except NoResultFound:
         pass
@@ -53,7 +103,9 @@ def _create_device():
     # now try to add the new device to the database
 
     try:
-        db.add(table(last_update=last_update(), **device_data))
+        db.add(table(created_at=time_now(),
+                     updated_at=time_now(),
+                     **device_data))
         db.commit()
 
     except Exception as exc:
@@ -61,10 +113,16 @@ def _create_device():
             ok=False,
             error_type=str(type(exc)),
             message=exc.message,
-            data=device_data), 500
+            rqst_data=device_data), 500
 
-    return jsonify(ok=True, data=device_data)
+    return jsonify(
+        ok=True, message='device added',
+        data=device_data)
 
+
+# -----------------------------------------------------------------------------
+#                             PUT /api/devices/status
+# -----------------------------------------------------------------------------
 
 @app.route('/api/devices/status', methods=['PUT'])
 def _put_device_status():
@@ -80,7 +138,7 @@ def _put_device_status():
             rec.state = rqst_data['state']
 
         rec.message = rqst_data.get('message')
-        rec.last_update = last_update()
+        rec.updated_at = time_now()
         db.commit()
 
     except NoResultFound:
@@ -92,17 +150,41 @@ def _put_device_status():
     return jsonify(ok=True)
 
 
+@app.route('/api/devices/facts', methods=['PUT'])
+def _put_device_facts():
+    rqst_data = request.get_json()
+
+    db = ztp_db.get_session()
+    table = ztp_db.Device
+
+    try:
+        rec = find_device(db, table, rqst_data).one()
+        rec.ip_addr = rqst_data.get('ip_addr')
+        rec.os_name = rqst_data.get('os_name')
+        rec.serial_number = rqst_data.get('serial_number')
+        rec.hw_model = rqst_data.get('hw_model')
+        rec.os_version = rqst_data.get('os_version')
+        db.commit()
+
+    except NoResultFound:
+        return jsonify(
+            ok=False,
+            message='Not Found',
+            item=rqst_data), 404
+
+    return jsonify(ok=True)
+
+
+# -----------------------------------------------------------------------------
+#                             DELETE /api/devices
+# -----------------------------------------------------------------------------
+
 @app.route('/api/devices', methods=['DELETE'])
 def _delete_devices():
 
-    try:
-        rqst_data = request.get_json()
-        assert(rqst_data['all'] is True)
-
-    except AssertionError:
-        return jsonify(
-            ok=False,
-            message='all must be true for now'), 400
+    arg_all = request.args.get('all')
+    if not arg_all:
+        return jsonify(ok=False, message='all must be true for now'), 400
 
     try:
         db = ztp_db.get_session()

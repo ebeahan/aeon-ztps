@@ -1,6 +1,5 @@
 #!/usr/bin/python
 
-import os
 from os import path
 from flask import request, send_from_directory, jsonify
 
@@ -23,6 +22,11 @@ def download_file(filename):
 def get_vendor_file(filename):
     from_dir = path.join(_AEON_TOPDIR, 'vendor_images')
     return send_from_directory(from_dir, filename)
+
+
+@app.route('/api/about')
+def api_version():
+    return jsonify(version="0.0.1")
 
 
 @app.route('/api/bootconf/<os_name>')

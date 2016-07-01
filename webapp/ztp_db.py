@@ -23,7 +23,9 @@ class Device(Base):
     os_version = Column(String(32))
     state = Column(String(15))
     message = Column(String(128))
-    last_update = Column(String(64), nullable=False)
+    created_at = Column(String(64), nullable=False)
+    updated_at = Column(String(64), nullable=False)
+
 
 class DeviceSchema(ModelSchema):
     class Meta:
