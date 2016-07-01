@@ -20,7 +20,7 @@ _PROGVER = '0.0.1'
 _OS_NAME = 'cumulus'
 
 _DEFAULTS = {
-    'init-delay': 60,
+    'init-delay': 5,
     'reload-delay': 10*60,
 }
 

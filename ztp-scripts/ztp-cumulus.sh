@@ -32,6 +32,10 @@ function setup_user_cumulus(){
 
 function install_license(){
    cl_lic=/usr/cumulus/bin/cl-license
+   if [[ ! -x $cl_lic ]]; then
+     return
+   fi
+
    lic=$($cl_lic)
    if [[ $? -ne 0 ]]
    then
