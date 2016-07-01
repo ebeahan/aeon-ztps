@@ -68,7 +68,7 @@
         - tftpd
         - tftp
         - libfcgi
-        - nginx-light
+        - nginx-full
         - uwsgi
         - uwsgi-plugin-python
         - rsync
