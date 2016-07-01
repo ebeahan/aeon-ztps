@@ -8,11 +8,11 @@ interfaces:
 
 dhcp_server:
     lease:
-        from: 172.20.63.50
-        to: 172.20.63.100
+        from: 192.168.59.50
+        to: 192.168.59.100
     ip:
-        subnet: 172.20.63.0
+        subnet: 192.168.59.0
         netmask: 255.255.255.0
-        gateway: 172.20.63.1
-        address: 172.20.63.4 
+        gateway: 192.168.59.3
+        address: 192.168.59.254 
 
