@@ -291,22 +291,47 @@ def check_os_install(dev):
 
 def do_os_install(dev, image_name):
 
-    image_fpath = os.path.join(g_cli_args.topdir,
-                               'etc', 'image-catalog',
-                               image_name)
+    vendor_dir = os.path.join(g_cli_args.topdir, 'vendor_images', _OS_NAME)
+    catalog_fpath = os.path.join(vendor_dir, 'catalog.yml')
 
-    image_data = yaml.load(open(image_fpath))
-    msg = 'installing OS version {} from {} ... please be patient'.format(
-        image_data['os_version'], image_data['copy_from'])
+    try:
+        image_catalog = yaml.load(open(catalog_fpath))
+
+    except Exception as exc:
+        errmsg = 'unable to load image catalog: {}'.format(catalog_fpath)
+        g_log.error(errmsg)
+        exit_results(dev=dev, results=dict(
+            ok=False,
+            error_type='install',
+            message=errmsg))
+
+    image_data = image_catalog.get(image_name)
+
+    if not image_data:
+        errmsg = 'unknown image name {} in catalog {}'.format(image_name, catalog_fpath)
+        g_log.error(errmsg)
+        exit_results(dev=dev, results=dict(
+            ok=False,
+            error_type='install',
+            message=errmsg))
+
+    if not os.path.isfile(os.path.join(vendor_dir, image_data['image'])):
+        errmsg = 'image file {} does not exist'.format(image_data['image'])
+        exit_results(dev=dev, results=dict(
+            ok=False,
+            error_type='install',
+            message=errmsg))
+
+    msg = 'installing OS version [{}] ... please be patient'.format(
+        image_data['os_version'])
 
     post_device_status(dev=dev, state='OS-INSTALL', message=msg)
 
-    cmd = "nxos-installos --target {target} --server {server} "\
-          "-U {u_env} -P {p_env} --image-profile {profile}"\
-          .format(
+    cmd = "nxos-installos --target {target} --server {server} " \
+          "-U {u_env} -P {p_env} --image {image} --md5sum {md5sum}".format(
             target=dev.target, server=g_cli_args.server,
-            u_env=g_cli_args.user_var, p_env=g_cli_args.passwd_var,
-            profile=image_fpath)
+            u_env=g_cli_args.env_user, p_env=g_cli_args.env_passwd,
+            image=image_data['image'], md5sum=image_data['md5sum'])
 
     if g_cli_args.logfile:
         cmd += ' --logfile %s' % g_cli_args.logfile
