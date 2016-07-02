@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import os
 from os import path
 from flask import request, send_from_directory, jsonify
 
@@ -9,7 +10,7 @@ import ztp_api_devices
 
 __all__ = ['app']
 
-_AEON_TOPDIR = '/opt/aeon-ztp'
+_AEON_TOPDIR = os.getenv('AEON_TOPDIR')
 
 
 @app.route('/downloads/<path:filename>', methods=['GET'])
@@ -51,4 +52,5 @@ def api_finalizer(os_name):
 
 @app.route('/api/env')
 def api_env():
-    return jsonify(dict(AEON_TOPDIR=_AEON_TOPDIR))
+    my_env = os.environ.copy()
+    return jsonify(my_env)
