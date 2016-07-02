@@ -143,6 +143,13 @@ def ztp_bootstrapper(os_name, target):
         return rc
 
     rc = do_finalize(server=server, os_name=os_name, target=target, log=log)
+    if 0 != rc:
+        return rc
+
+    post_device_status(server=server,
+                       os_name=os_name, target=target,
+                       state='DONE', message='device bootstrap completed')
+
     return rc
 
 

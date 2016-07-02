@@ -7,7 +7,6 @@ import argparse
 import subprocess
 import logging
 import time
-import socket
 import requests
 import yaml
 
@@ -15,11 +14,9 @@ from aeon.eos.device import Device
 from aeon.exceptions import ProbeError, UnauthorizedError
 from aeon.exceptions import ConfigError, CommandError
 
-_PROGNAME = 'eos-bootstrap'
-_PROGVER = '0.0.1'
-
-_API_PORT = 8080
 _OS_NAME = 'eos'
+_PROGNAME = '%s-bootstrap' % _OS_NAME
+_PROGVER = '0.0.1'
 
 # ##### -----------------------------------------------------------------------
 # #####
@@ -37,8 +34,8 @@ psr.add_argument(
     help='hostname or ip_addr of target device')
 
 psr.add_argument(
-    '--server',
-    help='IP or hostname of Aeon server')
+    '--server', required=True,
+    help='Aeon ZTP server host:port')
 
 psr.add_argument(
     '--topdir', required=True,
@@ -67,31 +64,65 @@ psr.add_argument(
 group = psr.add_argument_group('authentication')
 
 group.add_argument(
-    '-U', dest='user_var',
-    required=True,
+    '--user', help='login user-name')
+
+group.add_argument(
+    '-U', dest='env_user',
     help='Username environment variable')
 
 group.add_argument(
-    '-P', dest='passwd_var',
+    '-P', dest='env_passwd',
     required=True,
     help='Passwd environment variable')
 
 g_cli_args = psr.parse_args()
-g_log = logging.getLogger(name=_PROGNAME)
-g_self_server = None
+g_self_server = g_cli_args.server
 
 
-def setup_logging():
-    g_log.setLevel(logging.INFO)
-    fh = logging.FileHandler(g_cli_args.logfile)
+def setup_logging(logname, logfile, target):
+    log = logging.getLogger(name=logname)
+    log.setLevel(logging.INFO)
+
     fmt = logging.Formatter(
         '%(asctime)s:%(levelname)s:{target}:%(message)s'
-        .format(target=g_cli_args.target))
-    fh.setFormatter(fmt)
-    g_log.addHandler(fh)
+        .format(target=target))
 
-if g_cli_args.logfile:
-    setup_logging()
+    handler = logging.FileHandler(logfile) if logfile else logging.StreamHandler(sys.stdout)
+    handler.setFormatter(fmt)
+    log.addHandler(handler)
+
+    return log
+
+
+g_log = setup_logging(logname=_PROGNAME,
+                      logfile=g_cli_args.logfile,
+                      target=g_cli_args.target)
+
+
+# ##### -----------------------------------------------------------------------
+# #####
+# #####                           REST API functions
+# #####
+# ##### -----------------------------------------------------------------------
+
+def post_device_facts(dev):
+    requests.put(
+        url='http://%s/api/devices/facts' % g_self_server,
+        json=dict(
+            ip_addr=dev.target,
+            serial_number=dev.facts['serial_number'],
+            hw_model=dev.facts['hw_model'],
+            os_version=dev.facts['os_version'],
+            os_name=_OS_NAME))
+
+
+def post_device_status(dev=None, target=None, message=None, state=None):
+    requests.put(
+        url='http://%s/api/devices/status' % g_self_server,
+        json=dict(
+            os_name=_OS_NAME,
+            ip_addr=target or dev.target,
+            state=state, message=message))
 
 
 # ##### -----------------------------------------------------------------------
@@ -100,28 +131,35 @@ if g_cli_args.logfile:
 # #####
 # ##### -----------------------------------------------------------------------
 
-def exit_results(results, exit_error=None, dev=None):
+def exit_results(results, exit_error=None, dev=None, target=None):
     if results['ok']:
-        post_device_status(dev=dev, state='DONE', message='bootstrap completed OK')
+        post_device_status(dev=dev, target=target, state='DONE', message='bootstrap completed OK')
         sys.exit(0)
     else:
-        post_device_status(dev=dev, state='FAILED', message=results['message'])
+        post_device_status(dev=dev, target=target, state='FAILED', message=results['message'])
         sys.exit(exit_error or 1)
-
-
-def get_server_ipaddr(dst):
-    if g_cli_args.server:
-        return g_cli_args.server
-
-    dst_s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    dst_s.connect((dst, 0))
-    return dst_s.getsockname()[0]
 
 
 def wait_for_device(countdown, poll_delay):
     target = g_cli_args.target
-    user = os.getenv(g_cli_args.user_var)
-    passwd = os.getenv(g_cli_args.passwd_var)
+    user = g_cli_args.user or os.getenv(g_cli_args.env_user)
+    passwd = os.getenv(g_cli_args.env_passwd)
+
+    if not user:
+        errmsg = "login user-name missing"
+        g_log.error(errmsg)
+        exit_results(target=target, results=dict(
+            ok=False,
+            error_type='login',
+            message=errmsg))
+
+    if not passwd:
+        errmsg = "login user-password missing"
+        g_log.error(errmsg)
+        exit_results(target=target, results=dict(
+            ok=False,
+            error_type='login',
+            message=errmsg))
 
     dev = None
 
@@ -164,44 +202,6 @@ def wait_for_device(countdown, poll_delay):
 
     post_device_facts(dev)
     return dev
-
-
-# ##### -----------------------------------------------------------------------
-# #####
-# #####                           REST API functions
-# #####
-# ##### -----------------------------------------------------------------------
-
-def post_device_start(target):
-    requests.post(
-        url='http://%s/api/devices' % g_self_server,
-        json=dict(
-            ip_addr=target,
-            os_name=_OS_NAME,
-            state='START',
-            message='bootstrap started, waiting for device access'))
-
-
-def post_device_facts(dev):
-    requests.post(
-        url='http://%s/api/devices' % g_self_server,
-        json=dict(
-            ip_addr=dev.target,
-            serial_number=dev.facts['serial_number'],
-            hw_model=dev.facts['hw_model'],
-            os_version=dev.facts['os_version'],
-            os_name=_OS_NAME,
-            state='FACTS-GATHERED',
-            message='facts gathered, proceeding'))
-
-
-def post_device_status(dev=None, target=None, message=None, state=None):
-    requests.put(
-        url='http://%s/api/devices/status' % g_self_server,
-        json=dict(
-            os_name=_OS_NAME,
-            ip_addr=target or dev.target,
-            state=state, message=message))
 
 
 # ##### -----------------------------------------------------------------------
@@ -345,14 +345,14 @@ def do_os_install(dev, image_name):
         # -------------------------
 
         cmds = ['routing-context vrf {}'.format(dev.api.VRF_MGMT),
-                'copy http://{server}:{port}/images/{OS}/{filename} flash:'
-                .format(server=get_server_ipaddr(dev.target),
-                        port=_API_PORT, OS=_OS_NAME,
+                'copy http://{server}/images/{OS}/{filename} flash:'
+                .format(server=g_self_server, OS=_OS_NAME,
                         filename=image_data['image'])]
 
         try:
             dev.api.execute(cmds)
             g_log.info('copy OS image file completed.')
+
         except Exception as exc:
             errmsg = "Unable to copy file to device: %s" % str(exc)
             g_log.error(errmsg)
@@ -406,7 +406,7 @@ def do_ensure_os_version(dev):
     g_log.info('rebooting device ... please be patient')
 
     post_device_status(
-        dev, state='OS-REBOOTING',
+        dev, state='REBOOTING',
         message='OS install %s completed, now rebooting'
                 ' ... please be patient' % new_version)
 
@@ -422,14 +422,6 @@ def do_ensure_os_version(dev):
 # ##### -----------------------------------------------------------------------
 
 def main():
-    global g_self_server
-
-    g_self_server = "{}:{}".format(
-        get_server_ipaddr(g_cli_args.target),
-        _API_PORT)
-
-    post_device_start(g_cli_args.target)
-
     if not os.path.isdir(g_cli_args.topdir):
         exit_results(dict(
             ok=False,
@@ -438,6 +430,11 @@ def main():
 
     g_log.info("starting bootstrap process in {} seconds"
                .format(g_cli_args.init_delay))
+
+    post_device_status(
+        target=g_cli_args.target,
+        state='START',
+        message='bootstrap started, waiting for device access')
 
     time.sleep(g_cli_args.init_delay)
     dev = wait_for_device(countdown=g_cli_args.reload_delay, poll_delay=10)
