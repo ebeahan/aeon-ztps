@@ -259,6 +259,23 @@ def do_push_config(dev):
 # #####
 # ##### -----------------------------------------------------------------------
 
+def ensure_md5sum(filepath):
+    md5sum_fpath = filepath + ".md5"
+
+    def rd_md5sum():
+        return open(md5sum_fpath).read().split()[0]
+
+    if os.path.isfile(md5sum_fpath):
+        return rd_md5sum()
+
+    proc = subprocess.Popen('/usr/bin/md5sum {} > {}'.format(
+        filepath, md5sum_fpath), shell=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    proc.communicate()
+    return rd_md5sum()
+
+
 def check_os_install(dev):
     profile_dir = os.path.join(g_cli_args.topdir, 'etc', 'profiles', 'default', _OS_NAME)
     conf_fpath = os.path.join(profile_dir, 'os-selector.cfg')
@@ -289,42 +306,24 @@ def check_os_install(dev):
 
     return results
 
+
 def do_os_install(dev, image_name):
-    vendor_dir = os.path.join(g_cli_args.topdir,
-                              'vendor_images', _OS_NAME)
 
-    catalog_fpath = os.path.join(vendor_dir, 'catalog.yml')
+    vendor_dir = os.path.join(g_cli_args.topdir, 'vendor_images', _OS_NAME)
+    image_fpath = os.path.join(vendor_dir, image_name)
 
-    try:
-        image_catalog = yaml.load(open(catalog_fpath))
-
-    except Exception as exc:
-        errmsg = 'unable to load image catalog: {}'.format(catalog_fpath)
-        g_log.error(errmsg)
+    if not os.path.isfile(image_fpath):
+        errmsg = 'image file {} does not exist'.format(image_fpath)
         exit_results(dev=dev, results=dict(
             ok=False,
             error_type='install',
             message=errmsg))
 
-    image_data = image_catalog.get(image_name)
-    if not image_data:
-        errmsg = 'unknown image name {} in catalog {}'.format(image_name, catalog_fpath)
-        g_log.error(errmsg)
-        exit_results(dev=dev, results=dict(
-            ok=False,
-            error_type='install',
-            message=errmsg))
+    md5sum = ensure_md5sum(filepath=image_fpath)
+    msg = 'installing OS image [{}] ... please be patient'.format(image_name)
+    post_device_status(dev=dev, state='OS-INSTALL', message=msg)
 
-    if not os.path.isfile(os.path.join(vendor_dir, image_data['image'])):
-        errmsg = 'image file {} does not exist'.format(image_data['image'])
-        exit_results(dev=dev, results=dict(
-            ok=False,
-            error_type='install',
-            message=errmsg))
-
-    msg = 'installing OS version={}, file={} ... please be patient'.format(
-        image_data['version'], image_data['image'])
-
+    msg = 'installing OS image [{}] ... please be patient'.format(image_name)
     g_log.info(msg)
     post_device_status(dev=dev, state='OS-INSTALL', message=msg)
 
@@ -333,7 +332,7 @@ def do_os_install(dev, image_name):
     # --------------------------------
 
     try:
-        dev.api.execute('dir flash:%s' % image_data['image'])
+        dev.api.execute('dir flash:%s' % image_name)
         g_log.info('file already exists on device, skipping copy.')
         has_file = True
     except CommandError:
@@ -347,7 +346,7 @@ def do_os_install(dev, image_name):
         cmds = ['routing-context vrf {}'.format(dev.api.VRF_MGMT),
                 'copy http://{server}/images/{OS}/{filename} flash:'
                 .format(server=g_self_server, OS=_OS_NAME,
-                        filename=image_data['image'])]
+                        filename=image_name)]
 
         try:
             dev.api.execute(cmds)
@@ -368,12 +367,12 @@ def do_os_install(dev, image_name):
     # verify MD5 checksum
     # -------------------
 
-    got_md5 = dev.api.execute('verify /md5 flash:{}'.format(image_data['image']))
+    got_md5 = dev.api.execute('verify /md5 flash:{}'.format(image_name))
     has_md5 = got_md5['messages'][0].split('=')[-1].strip()
-    if has_md5 != image_data['md5sum']:
+    if has_md5 != md5sum:
         errmsg = 'image file {filename} MD5 mismatch has={has} should={should}' \
-            .format(filename=image_data['image'],
-                    has=has_md5, should=image_data['md5sum'])
+            .format(filename=image_name,
+                    has=has_md5, should=md5sum)
 
         g_log.error(errmsg)
         exit_results(dev=dev, results=dict(
@@ -387,20 +386,19 @@ def do_os_install(dev, image_name):
     # configure to use this version for system boot
     # ---------------------------------------------
 
-    dev.api.configure(['boot system flash:%s' % image_data['image']])
+    dev.api.configure(['boot system flash:%s' % image_name])
     dev.api.execute('copy running-config status-config')
-    return image_data['version']
 
 
 def do_ensure_os_version(dev):
     os_install = check_os_install(dev)
-
-    if not os_install['image']:
+    image_name = os_install['image']
+    if not image_name:
         g_log.info('no software install required')
         return dev
 
-    g_log.info('software image install required: %s' % os_install['image'])
-    new_version = do_os_install(dev, image_name=os_install['image'])
+    g_log.info('software image install required: %s' % image_name)
+    do_os_install(dev, image_name=image_name)
 
     g_log.info('software install OK')
     g_log.info('rebooting device ... please be patient')
@@ -408,7 +406,7 @@ def do_ensure_os_version(dev):
     post_device_status(
         dev, state='REBOOTING',
         message='OS install %s completed, now rebooting'
-                ' ... please be patient' % new_version)
+                ' ... please be patient' % image_name)
 
     dev.api.execute('reload now')
     time.sleep(g_cli_args.init_delay)
