@@ -186,7 +186,7 @@ def wait_for_device(countdown, poll_delay):
             time.sleep(poll_delay)
             countdown -= poll_delay
 
-    exit_results(dict(
+    exit_results(target=target, results=dict(
         ok=False,
         error_type='login',
         message='%s failed to find "System ready" within reload countdown' % target))
