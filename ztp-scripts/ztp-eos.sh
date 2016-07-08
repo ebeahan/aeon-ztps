@@ -1,5 +1,7 @@
 #!/bin/bash
 
+CLI="FastCli -p15 -c"
+
 ## trap and print what failed
 
 function error () {
@@ -8,11 +10,18 @@ function error () {
 }
 trap error ERR
 
-# Extract the Aeon ZTP server IP address from /var/log/messages.
-# Hard code the Aeon ZTP server port-number
+# -------------------------------------------------------------------
+# for now, hard code the Aeon ZTP server port-number.  future release
+# will dynamically set this value
+# -------------------------------------------------------------------
 
 SERVER_PORT=8080
 
+# ----------------------------------------------------
+# Use the ZTP DHCP options to configure the management
+# interface of the device as well as know the ip-addr
+# of the Aeon ZTP server
+# ----------------------------------------------------
 
 DHCP_SUCCESS=$(grep -m1 DHCP_SUCCESS /var/log/messages)
 
@@ -32,15 +41,26 @@ HTTP="http://${SERVER}:${SERVER_PORT}"
 HTTP_DL="${HTTP}/downloads"
 HTTP_API="${HTTP}/api"
 
-wget -O /dev/null ${HTTP_API}/register/eos
-
-CLI="FastCli -p15 -c"
-
 ${CLI} "enable
 copy ${HTTP_API}/bootconf/eos running"
 
+# -------------------------------------------------------------------
+# kick-off the Aeon ZTP server bootstrap process.
+# MUST be done before updating the EOS configuration
+# -------------------------------------------------------------------
+
+wget -O /dev/null ${HTTP_API}/register/eos
+
+# ----------------------------------------------
+# update the EOS configuration
+# ----------------------------------------------
+
+if [[ "$GATEWAY" != "" ]]; then
 ${CLI} "configure terminal
-ip route vrf management 0.0.0.0/0 $GATEWAY
+ip route vrf management 0.0.0.0/0 $GATEWAY"
+fi
+
+${CLI} "configure terminal
 interface $INTF
 vrf forwarding management
 ip address $IP_ADDR"
