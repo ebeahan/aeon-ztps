@@ -1,0 +1,8 @@
+Interfaces:
+    eth0:
+        dhcp: true
+    eth1:
+        address: 192.168.59.254
+        netmask: 255.255.255.0
+        gateway: 192.168.59.3
+        metric: 10

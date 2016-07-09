@@ -1,0 +1,4 @@
+Hostname: aeon-ztps
+InstallDir: /opt/aeonztps
+AeonUser: aeon
+AeonGroup: users

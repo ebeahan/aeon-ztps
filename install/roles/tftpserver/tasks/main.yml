@@ -1,0 +1,12 @@
+- name: Install Linux packages
+  apt: name={{ item }} state=present
+  with_items:
+    - xinetd
+    - tftpd
+    - tftp
+
+- name: install TFTP server config file
+  template: src=tftp dest=/etc/xinetd.d mode=644 owner=root group=root
+
+- name: restart xinetd
+  service: name=xinetd enabled=yes state=started

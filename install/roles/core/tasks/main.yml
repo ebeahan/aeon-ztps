@@ -1,0 +1,7 @@
+- name: setup the device hostname
+  hostname: name={{ Hostname }}
+
+- include: users.yml
+- include: apt_update.yml
+- include: software.yml
+- include: interfaces.yml

@@ -1,0 +1,9 @@
+aeonztp_server: 192.168.59.254
+
+dhcp_subnet: 192.168.59.0
+dhcp_from_ipaddr: 192.168.59.50
+dhcp_to_ipaddr: 192.168.59.150
+dhcp_netmask: 255.255.255.0
+dhcp_gateway: 192.168.59.3
+dhcp_nameserver: 8.8.8.8
+

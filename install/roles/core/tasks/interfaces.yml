@@ -1,0 +1,6 @@
+- name: install /etc/network/interfaces
+  copy: src=interfaces dest=/etc/network/interfaces
+
+- name: create interface cfg files
+  template: src=iface.jinja2 dest=/etc/network/interfaces.d/{{ item.key }}.cfg
+  with_dict: "{{ Interfaces }}"
