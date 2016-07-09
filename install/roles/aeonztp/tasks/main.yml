@@ -27,3 +27,9 @@
 
 - name: Copy ztp-scripts to tftpboot
   copy: src="{{ TopDir }}/ztp-scripts/" dest={{ InstallDir }}/tftpboot owner=nobody mode=777
+
+- name: symlink ztp-cumulus in downloads directory
+  file:
+    state=link
+    src={{ InstallDir }}/tftpboot/ztp-cumulus.sh
+    dest={{ InstallDir }}/downloads/ztp-cumulus.sh
