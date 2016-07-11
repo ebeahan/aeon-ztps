@@ -2,7 +2,7 @@
   template: src=aeonztp.conf dest=/etc/aeonztp.conf owner=root group=root mode=644
 
 - name: create aeonztp directories
-  file: path={{ item }} state=directory owner={{ AeonUser }} group={{ AeonGroup }} mode=775
+  file: path={{ item }} state=directory owner={{ AeonUser }} group={{ AeonGroup }} mode=755
   with_items:
     - "{{ InstallDir }}/logs"
     - "{{ InstallDir }}/run"
@@ -26,7 +26,6 @@
   copy: src="{{ TopDir }}/ztp-scripts/" dest={{ InstallDir }}/tftpboot owner=nobody mode=777
 
 - name: symlink ztp-cumulus in downloads directory
-  file:
-    state=link
+  file: state=link
     src={{ InstallDir }}/tftpboot/ztp-cumulus.sh
     dest={{ InstallDir }}/downloads/ztp-cumulus.sh
