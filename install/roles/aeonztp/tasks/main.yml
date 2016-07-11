@@ -4,10 +4,6 @@
 - name: create aeonztp directories
   file: path={{ item }} state=directory owner={{ AeonUser }} group={{ AeonGroup }} mode=775
   with_items:
-    - "{{ InstallDir }}/etc"
-    - "{{ InstallDir }}/bin"
-    - "{{ InstallDir }}/vendor_images"
-    - "{{ InstallDir }}/downloads"
     - "{{ InstallDir }}/logs"
     - "{{ InstallDir }}/run"
     - /var/log/aeon-ztp
@@ -18,12 +14,13 @@
         owner={{ AeonUser }} group={{ AeonGroup }} mode=775 directory_mode=775
 
 - name: copy aeonztp directories over
-  synchronize: src={{ item }} dest={{ InstallDir }}
+  synchronize: src="{{ TopDir }}/{{ item }}" dest={{ InstallDir }}
                rsync_opts="-avO --chown aeon:users" rsync_path="sudo rsync"
   with_items:
-    - "{{ TopDir }}/bin"
-    - "{{ TopDir }}/etc"
-    - "{{ TopDir }}/vendor_images"
+    - bin
+    - etc
+    - vendor_images
+    - downloads
 
 - name: Copy ztp-scripts to tftpboot
   copy: src="{{ TopDir }}/ztp-scripts/" dest={{ InstallDir }}/tftpboot owner=nobody mode=777
