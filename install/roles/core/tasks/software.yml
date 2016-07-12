@@ -1,0 +1,30 @@
+
+
+- name: Install Linux development packages
+  apt: name={{ item }} state=present
+  with_items:
+    - build-essential
+    - python-dev
+    - python-pip
+    - libyaml-dev
+    - libxml2-dev
+    - libxslt-dev
+    - zlib1g-dev
+    - rsync
+
+- name: Install Linux utility packages
+  apt: name={{ item }} state=present
+  with_items:
+    - vim
+    - tree
+
+- name: upgrading pip
+  pip: name=pip extra_args='--upgrade'
+
+- name: upgrade setuptools
+  pip: name=setuptools extra_args='--upgrade'
+
+- copy: src=requirements.txt dest=/tmp/requirements.txt
+
+- name: install python packages
+  pip: requirements=/tmp/requirements.txt

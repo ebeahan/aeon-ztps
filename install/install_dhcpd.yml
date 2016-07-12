@@ -1,9 +1,0 @@
-# --------------------------------------------------------
-- name: Install DHCP server
-  apt: name=isc-dhcp-server state=present
-
-- name: Install DHCP configuration file
-  template: src=dhcpd.conf dest=/etc/dhcp/dhcpd.conf
-
-- name: Install DHCP reset script
-  copy: src=dhcpd-reset dest=/usr/local/bin mode=755

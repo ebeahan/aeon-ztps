@@ -1,4 +1,0 @@
----
-- name: Install TFTP server config file
-  copy: src=tftp dest=/etc/xinetd.d mode=644 owner=root group=root
-

@@ -1,3 +1,4 @@
+import os
 from sqlalchemy import Column, ForeignKey, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
@@ -9,6 +10,8 @@ __all__ = [
     'Device',
     'get_session'
 ]
+
+_AEON_TOPDIR = os.getenv('AEON_TOPDIR')
 
 Base = declarative_base()
 
@@ -39,5 +42,5 @@ def get_session():
     return DBSession()
 
 
-engine = create_engine('sqlite:////opt/aeon-ztp/run/aeon-ztp.db')
+engine = create_engine('sqlite:///{topdir}/run/aeon-ztp.db'.format(topdir=_AEON_TOPDIR))
 Base.metadata.create_all(engine)

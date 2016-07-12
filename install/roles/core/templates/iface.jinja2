@@ -1,0 +1,12 @@
+auto {{ item.key }}
+{% if item.value.dhcp is defined %}
+iface {{ item.key }} inet dhcp
+{% else %}
+iface {{ item.key }} inet static
+    address {{ item.value.address }}
+    netmask {{ item.value.netmask }}
+    gateway {{ item.value.gateway }}
+{% if item.value.metric is defined %}
+    metric {{ item.value.metric }}
+{% endif %}
+{% endif %}

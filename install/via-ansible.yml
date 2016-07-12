@@ -1,0 +1,24 @@
+---
+- hosts: all
+  become: true
+  vars:
+    - TopDir: "{{ playbook_dir }}/.."
+
+  vars_files:
+    - vars/host.yml
+    - vars/interfaces.yml
+
+  roles:
+    - core
+    - aeonztp
+    - tftpserver
+    - webserver
+    - dhcpserver
+
+  tasks:
+    - name: Reboot
+      shell: sleep 2 && shutdown -r now
+      async: 1
+      poll: 0
+      ignore_errors: true
+
