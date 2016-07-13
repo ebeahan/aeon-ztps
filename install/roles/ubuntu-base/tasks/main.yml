@@ -2,6 +2,6 @@
   hostname: name={{ Hostname }}
 
 - include: users.yml
-#- include: apt_update.yml
-#- include: software.yml
-#- include: interfaces.yml
+- include: apt_update.yml
+- include: software.yml
+- include: interfaces.yml
