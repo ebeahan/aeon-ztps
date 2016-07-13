@@ -1,0 +1,5 @@
+- name: Create the 'aeon' group
+  group: name=aeon state=present
+
+- name: Create 'aeon' user
+  user: name=aeon state=present system=yes createhome=no

@@ -1,0 +1,14 @@
+- name: Create the 'admin' group
+  group: name=admin state=present
+
+- name: create admin user password
+  shell: echo 'admin' | openssl passwd -1 -stdin
+  register: admin_passwd
+
+- name: Add 'admin' user
+  user:
+    name=admin state=present groups=users shell=/bin/bash
+    password={{ admin_passwd.stdout }}
+
+- name: add 'admin' to sudoers
+  copy: src=sudoer-admin dest=/etc/sudoers.d/admin mode=440

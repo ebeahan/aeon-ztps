@@ -1,0 +1,5 @@
+DHCP_server:
+    interface: eth1
+    lease_from: 192.168.59.50
+    lease_to: 192.168.59.150
+    nameserver: 192.168.59.254

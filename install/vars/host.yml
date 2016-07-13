@@ -2,3 +2,4 @@ Hostname: aeon-ztps
 InstallDir: /opt/aeonztps
 AeonUser: aeon
 AeonGroup: users
+install_dhcp_server: True       # True | False

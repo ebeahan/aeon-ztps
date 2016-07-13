@@ -22,8 +22,8 @@
     - vendor_images
     - downloads
 
-- nmae: make directories group writable
-  command: chmod -R g+w {{ item }}
+- name: make directories group writable
+  command: chmod -R g+w {{ InstallDir }}/{{ item }}
   with_items:
     - vendor_images
     - downloads

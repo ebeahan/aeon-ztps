@@ -1,4 +1,6 @@
 # --------------------------------------------------------
+- include_vars: "{{ playbook_dir }}/vars/dhcp-server.yml"
+
 - name: install ISC DHCP server
   apt: name=isc-dhcp-server state=present
 
