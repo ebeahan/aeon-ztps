@@ -9,16 +9,15 @@
     - vars/interfaces.yml
 
   roles:
-#    - ubuntu-base
-#    - aeon-ztp-server
-#    - tftp-server
-#    - web-server
+    - ubuntu-base
+    - aeon-ztp-server
+    - tftp-server
+    - web-server
     - { role: dhcp-server, when: install_dhcp_server == True }
 
-#  tasks:
-#    - name: Reboot
-#      shell: sleep 2 && shutdown -r now
-#      async: 1
-#      poll: 0
-#      ignore_errors: true
-
+  tasks:
+    - name: Reboot
+      shell: sleep 2 && shutdown -r now
+      async: 1
+      poll: 0
+      ignore_errors: true

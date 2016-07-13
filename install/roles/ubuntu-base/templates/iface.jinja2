@@ -4,8 +4,12 @@ iface {{ item.key }} inet dhcp
 {% else %}
 iface {{ item.key }} inet static
     address {{ item.value.address }}
+{% if item.value.netmask is defined %}
     netmask {{ item.value.netmask }}
+{% endif %}
+{% if item.value.gateway is defined %}
     gateway {{ item.value.gateway }}
+{% endif %}
 {% if item.value.metric is defined %}
     metric {{ item.value.metric }}
 {% endif %}
