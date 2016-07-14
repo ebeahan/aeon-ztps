@@ -1,8 +1,9 @@
 - name: update hostname
   hostname: name={{ Hostname }}
 
-#- name: update hostname in /etc/hosts
-#  command: sed -i 's/^127.0.1.1[ \t]*ubuntu$/127.0.1.1\t{{ Hostname }}/' /etc/hosts
+- name: update hostname in /etc/hosts
+  command: sed  -ie 's/^\(127.0[^ \t]*\)[ \t]*ubuntu$/\1\t{{ Hostname }}/g' /etc/hosts
+  ignore_errors: true
 
 - include: users.yml
 - include: apt_update.yml
