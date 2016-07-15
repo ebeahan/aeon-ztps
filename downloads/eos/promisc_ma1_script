@@ -1,0 +1,6 @@
+#!/bin/sh
+
+if [ $OPERSTATE = "linkup" ]; then
+   echo $INTF \($KERNELINTF\) is up, setting PROMISC
+   ifconfig ma1 promisc
+fi

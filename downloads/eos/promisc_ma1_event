@@ -1,0 +1,5 @@
+event-handler promisc-ma1
+   trigger on-intf Management1 operstatus
+   action bash /mnt/flash/promisc_ma1_script
+   delay 10
+end

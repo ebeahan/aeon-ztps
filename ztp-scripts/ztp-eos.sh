@@ -41,8 +41,15 @@ HTTP="http://${SERVER}:${SERVER_PORT}"
 HTTP_DL="${HTTP}/downloads"
 HTTP_API="${HTTP}/api"
 
-${CLI} "enable
-copy ${HTTP_API}/bootconf/eos running"
+${CLI} "enable"
+${CLI} "show version > version_info"
+
+if grep vEOS /mnt/flash/version_info; then
+    ${CLI} "copy ${HTTP_DL}/eos/promisc_ma1_script flash:"
+    ${CLI} "copy ${HTTP_DL}/eos/promisc_ma1_event running"
+fi
+
+${CLI} "copy ${HTTP_API}/bootconf/eos running"
 
 # -------------------------------------------------------------------
 # kick-off the Aeon ZTP server bootstrap process.
@@ -52,7 +59,7 @@ copy ${HTTP_API}/bootconf/eos running"
 wget -O /dev/null ${HTTP_API}/register/eos
 
 # ----------------------------------------------
-# update the EOS configuration
+# update the EOS management configuration
 # ----------------------------------------------
 
 if [[ "$GATEWAY" != "" ]]; then
