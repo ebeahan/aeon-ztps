@@ -13,7 +13,7 @@
     - aeon-ztp-server
     - tftp-server
     - web-server
-    - { role: dhcp-server, when: install_dhcp_server == True }
+    - { role: dhcp-server, when: Include_dhcp_server == True }
 
   tasks:
     - name: Reboot

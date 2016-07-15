@@ -1,6 +1,5 @@
 Hostname: aeon-ztps
-InstallDir: /opt/aeonztps
-AeonUser: aeon
-AeonGroup: users
-
-install_dhcp_server: True       # True | False
+Install_dir: /opt/aeonztps
+Aeon_user: aeon
+Aeon_group: users
+Include_dhcp_server: yes

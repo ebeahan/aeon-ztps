@@ -3,7 +3,8 @@
   copy: src=nginx.conf dest=/etc/nginx/nginx.conf mode=644 owner=root group=root
 
 - name: Install NGINX aeon-ztp site file
-  copy: src=nginx.aeon-ztp.ini dest=/etc/nginx/sites-enabled/aeon-ztp.ini mode=644 owner=root group=root
+  copy: src=nginx.aeon-ztp.ini dest=/etc/nginx/sites-enabled/aeon-ztp.ini
+        mode=644 owner=root group=root
 
 - name: Enable the Nginx service
   service: name=nginx enabled=yes state=started

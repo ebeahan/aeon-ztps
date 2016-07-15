@@ -1,37 +1,49 @@
 - name: copy aeon-ztps conf file
   template: src=aeonztp.conf dest=/etc/aeonztp.conf owner=root group=root mode=644
 
-- name: create aeonztp directories
-  file: path={{ item }} state=directory owner={{ AeonUser }} group={{ AeonGroup }} mode=755
-  with_items:
-    - "{{ InstallDir }}/logs"
-    - "{{ InstallDir }}/run"
-    - /var/log/aeon-ztp
-    - /var/run/aeon-ztp
-
-- name: copy aeon-ztps webapp files over
-  copy: src="{{ TopDir }}/webapp" dest={{ InstallDir }}
-        owner={{ AeonUser }} group={{ AeonGroup }} mode=775 directory_mode=775
-
 - name: copy aeon-ztps directories over
-  synchronize: src="{{ TopDir }}/{{ item }}" dest={{ InstallDir }}
-               rsync_opts="-avO --chown aeon:users" rsync_path="sudo rsync"
+  copy: src="{{ TopDir }}/{{ item }}" dest={{ Install_dir }}
+        owner={{ Aeon_user }} group={{ Aeon_group }}
+        directory_mode=775
   with_items:
     - bin
     - etc
+    - webapp
     - vendor_images
     - downloads
 
+- name: make bin items executable
+  shell: chmod +x {{ Install_dir }}/bin/*
+
 - name: make directories group writable
-  command: chmod -R g+w {{ InstallDir }}/{{ item }}
+  command: chmod -R g+w {{ Install_dir }}/{{ item }}
   with_items:
     - vendor_images
     - downloads
 
-- name: Copy ztp-scripts to tftpboot
-  copy: src="{{ TopDir }}/ztp-scripts/" dest={{ InstallDir }}/tftpboot owner=nobody mode=777
+- name: create aeonztp directories
+  file: path={{ Install_dir }}/{{ item }} state=directory
+        owner={{ Aeon_user }} group={{ Aeon_group }} mode=755
+  with_items:
+    - logs
+    - run
+
+- name: create aeonztp /var directories
+  file: path={{ item }} state=directory
+        owner={{ Aeon_user }} group={{ Aeon_group }} mode=755
+  with_items:
+    - /var/log/aeon-ztp
+    - /var/run/aeon-ztp
+
+- name: copy ztp-scripts to tftpboot
+  copy: src="{{ TopDir }}/ztp-scripts/" dest={{ Install_dir }}/tftpboot
+        owner=nobody mode=777
 
 - name: symlink ztp-cumulus in downloads directory
   file: state=link
-    src={{ InstallDir }}/tftpboot/ztp-cumulus.sh
-    dest={{ InstallDir }}/downloads/ztp-cumulus.sh
+        src={{ Install_dir }}/tftpboot/ztp-cumulus.sh
+        dest={{ Install_dir }}/downloads/ztp-cumulus.sh
+
+- name: install aztp-db-flush utility
+  file: state=link src={{ Install_dir }}/bin/aztp-db-flush
+        dest=/usr/local/bin/aztp-db-flush

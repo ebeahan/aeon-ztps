@@ -1,9 +1,11 @@
 ---
 - name: Install uwsgi aeon-ztp site file
-  template: src=uwsgi.aeon-ztp.ini dest=/etc/uwsgi/apps-available/aeon-ztp.ini mode=644 owner=root group=root
+  template: src=uwsgi.aeon-ztp.ini dest=/etc/uwsgi/apps-available/aeon-ztp.ini
+            mode=644 owner=root group=root
 
 - name: Install link to aeon-ztp ini file
-  file: src=/etc/uwsgi/apps-available/aeon-ztp.ini dest=/etc/uwsgi/apps-enabled/aeon-ztp.ini owner=root group=root state=link
+  file: src=/etc/uwsgi/apps-available/aeon-ztp.ini dest=/etc/uwsgi/apps-enabled/aeon-ztp.ini
+        owner=root group=root state=link
 
 - name: Install uwsgi init script
   copy: src=uwsgi dest=/etc/init.d mode=755 owner=root group=root
