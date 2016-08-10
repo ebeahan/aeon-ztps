@@ -200,19 +200,39 @@ def _put_device_facts():
 @app.route('/api/devices', methods=['DELETE'])
 def _delete_devices():
 
-    arg_all = request.args.get('all')
-    if not arg_all:
-        return jsonify(
-            ok=False, message='all must be true for now'), 400
+    if request.args.get('all'):
+        try:
+            db = ztp_db.get_session()
+            db.query(ztp_db.Device).delete()
+            db.commit()
 
-    try:
+        except Exception as exc:
+            return jsonify(
+                ok=False,
+                message='unable to delete all records: {}'.format(exc.message)), 400
+
+        return jsonify(ok=True, message='all records deleted')
+
+    elif request.args:
         db = ztp_db.get_session()
-        db.query(ztp_db.Device).delete()
-        db.commit()
 
-    except Exception as exc:
-        return jsonify(
-            ok=False,
-            message='unable to delete all records: {}'.format(exc.message)), 400
+        try:
+            recs = find_devices(db, ztp_db.Device, request.args)
+            n_recs = recs.count()
+            recs.delete(synchronize_session=False)
+            db.commit()
+            return jsonify(
+                ok=True, count=n_recs,
+                message='{} records deleted'.format(n_recs))
 
-    return jsonify(ok=True, message='all records deleted')
+        except NoResultFound:
+            return jsonify(ok=False, message='Not Found'), 404
+
+        except AttributeError:
+            return jsonify(ok=False, message='invalid arguments'), 500
+
+        except Exception as exc:
+            msg = 'unable to delete specific records: {}'.format(exc.message)
+            return jsonify(ok=False, message=msg), 500
+    else:
+        return jsonify(ok=False, message='all or filter required'), 400
