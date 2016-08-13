@@ -20,6 +20,22 @@ def find_device(db, table, dev_data):
         table.ip_addr == dev_data['ip_addr']))
 
 
+def find_devices(db, table, matching):
+    """
+    :param db: database
+    :param table: table
+    :param matching: dictionary of column name:value parings
+    :return: filtered query items
+    """
+
+    filter_list = []
+    for name, value in matching.iteritems():
+        col = getattr(table, name)
+        filter_list.append(col.op('==')(value))
+
+    return db.query(table).filter(SQL_AND(*filter_list))
+
+
 def time_now():
     now = datetime.now()
     return datetime.isoformat(now)
@@ -33,12 +49,6 @@ def time_now():
 # #############################################################################
 # -----------------------------------------------------------------------------
 
-
-@app.route('/api/devices', methods=['HEAD'])
-def _get_device_count(dev_sn):
-    return "get_device_count {}: OK".format(dev_sn)
-
-
 # -----------------------------------------------------------------------------
 #                                 GET /api/devices
 # -----------------------------------------------------------------------------
@@ -48,33 +58,29 @@ def _get_devices():
     db = ztp_db.get_session()
     to_json = ztp_db.Device.Schema()
 
-    arg_ipaddr = request.args.get('ipaddr')
-    arg_os_name = request.args.get('os_name')
+    # ---------------------------------------------------------------
+    # if the request has arguments, use these to form an "and" filter
+    # and return only the subset of items matching
+    # ---------------------------------------------------------------
 
-    # --------------------
-    # return just one item
-    # --------------------
-
-    if arg_ipaddr and arg_os_name:
+    if request.args:
         try:
-
-            rec = find_device(db, ztp_db.Device,
-                              dict(ip_addr=arg_ipaddr, os_name=arg_os_name)).one()
-
-            return jsonify(items=[to_json.dump(rec).data])
+            recs = find_devices(db, ztp_db.Device, request.args)
+            items = [to_json.dump(rec).data for rec in recs]
+            return jsonify(count=len(items), items=items)
 
         except NoResultFound:
-            return jsonify(
-                ok=False,
-                message='Not Found'), 404
+            return jsonify(ok=False, message='Not Found'), 404
 
-    # ----------------
-    # return all items
-    # ----------------
+        except AttributeError:
+            return jsonify(ok=False, message='invalid arguments'), 500
 
-    return jsonify(
-        items=[to_json.dump(rec).data
-               for rec in db.query(ztp_db.Device).all()])
+    # -------------------------------------------
+    # otherwise, return all items in the database
+    # -------------------------------------------
+
+    items = [to_json.dump(rec).data for rec in db.query(ztp_db.Device).all()]
+    return jsonify(count=len(items), items=items)
 
 
 # -----------------------------------------------------------------------------
@@ -88,19 +94,28 @@ def _create_device():
     db = ztp_db.get_session()
     table = ztp_db.Device
 
+    # ----------------------------------------------------------
     # check to see if the device already exists, and if it does,
     # then reject the request
+    # ----------------------------------------------------------
 
     try:
-        find_device(db, table, device_data).one()
+        rec = find_device(db, table, device_data).one()
+        rec.state = 'ERROR'
+        rec.updated_at = time_now()
+        rec.message = 'device with os_name, ip_addr already exists'
+        db.commit()
+
         return jsonify(
-            ok=False, message='already exists',
+            ok=False, message=rec.message,
             rqst_data=device_data), 400
 
     except NoResultFound:
         pass
 
+    # ---------------------------------------------
     # now try to add the new device to the database
+    # ---------------------------------------------
 
     try:
         db.add(table(created_at=time_now(),
@@ -121,7 +136,7 @@ def _create_device():
 
 
 # -----------------------------------------------------------------------------
-#                             PUT /api/devices/status
+#                  PUT: /api/devices/status
 # -----------------------------------------------------------------------------
 
 @app.route('/api/devices/status', methods=['PUT'])
@@ -143,11 +158,14 @@ def _put_device_status():
 
     except NoResultFound:
         return jsonify(
-            ok=False,
-            message='Not Found',
+            ok=False, message='Not Found',
             item=rqst_data), 400
 
     return jsonify(ok=True)
+
+# -----------------------------------------------------------------------------
+#                  PUT: /api/devices/facts
+# -----------------------------------------------------------------------------
 
 
 @app.route('/api/devices/facts', methods=['PUT'])
@@ -164,36 +182,57 @@ def _put_device_facts():
         rec.serial_number = rqst_data.get('serial_number')
         rec.hw_model = rqst_data.get('hw_model')
         rec.os_version = rqst_data.get('os_version')
+        rec.updated_at = time_now()
         db.commit()
 
     except NoResultFound:
         return jsonify(
-            ok=False,
-            message='Not Found',
+            ok=False, message='Not Found',
             item=rqst_data), 404
 
     return jsonify(ok=True)
 
 
 # -----------------------------------------------------------------------------
-#                             DELETE /api/devices
+#                  DELETE: /api/devices
 # -----------------------------------------------------------------------------
 
 @app.route('/api/devices', methods=['DELETE'])
 def _delete_devices():
 
-    arg_all = request.args.get('all')
-    if not arg_all:
-        return jsonify(ok=False, message='all must be true for now'), 400
+    if request.args.get('all'):
+        try:
+            db = ztp_db.get_session()
+            db.query(ztp_db.Device).delete()
+            db.commit()
 
-    try:
+        except Exception as exc:
+            return jsonify(
+                ok=False,
+                message='unable to delete all records: {}'.format(exc.message)), 400
+
+        return jsonify(ok=True, message='all records deleted')
+
+    elif request.args:
         db = ztp_db.get_session()
-        db.query(ztp_db.Device).delete()
-        db.commit()
 
-    except Exception as exc:
-        return jsonify(
-            ok=False,
-            message='unable to delete all records: {}'.format(exc.message)), 400
+        try:
+            recs = find_devices(db, ztp_db.Device, request.args)
+            n_recs = recs.count()
+            recs.delete(synchronize_session=False)
+            db.commit()
+            return jsonify(
+                ok=True, count=n_recs,
+                message='{} records deleted'.format(n_recs))
 
-    return jsonify(ok=True, message='all records deleted')
+        except NoResultFound:
+            return jsonify(ok=False, message='Not Found'), 404
+
+        except AttributeError:
+            return jsonify(ok=False, message='invalid arguments'), 500
+
+        except Exception as exc:
+            msg = 'unable to delete specific records: {}'.format(exc.message)
+            return jsonify(ok=False, message=msg), 500
+    else:
+        return jsonify(ok=False, message='all or filter required'), 400
