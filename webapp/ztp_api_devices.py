@@ -1,3 +1,8 @@
+# Copyright 2014-present, Apstra, Inc. All rights reserved.
+#
+# This source code is licensed under End User License Agreement found in the
+# LICENSE file at http://www.apstra.com/community/eula
+
 from datetime import datetime
 from flask import request, jsonify
 from sqlalchemy import and_ as SQL_AND
