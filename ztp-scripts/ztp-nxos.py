@@ -1,4 +1,9 @@
 #!/usr/bin/env python
+# Copyright 2014-present, Apstra, Inc. All rights reserved.
+#
+# This source code is licensed under End User License Agreement found in the
+# LICENSE file at http://www.apstra.com/community/eula
+
 #md5sum="0cf4274e0a79bdd6acf0bffdb12275fa"
 
 from cli import cli
