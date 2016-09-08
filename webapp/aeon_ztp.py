@@ -11,7 +11,6 @@ from flask import request, send_from_directory, jsonify
 
 from aeon_ztp_app import app
 import ztp_celery
-import ztp_api_devices
 
 __all__ = ['app']
 
