@@ -9,6 +9,7 @@ app = Flask(__name__)
 
 app.config['CELERY_BROKER_URL'] = 'amqp://'
 app.config['CELERY_RESULT_BACKEND'] = 'rpc://'
+app.secret_key = 'AHJFauf2wUAWFJAwfhyawfhAWFUHJAWEUFOawefuaWEFUWAEFUAWEFahfaF43*3'
 
 app.debug = True
 

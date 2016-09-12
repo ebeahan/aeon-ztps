@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block content %}
+    <p>dhcp server enabled here</p>
+    <p><a href="{{ url_for('dhcp_flush') }}">Flush DHCP</a></p>
+  {% for lease in dhcp %}
+  {% if loop.first %}
+  <table class="table table-bordered table-hover">
+    <tr>
+      <th>IP</th>
+      <th>Hardware type</th>
+      <th>Hostname</th>
+      <th>Options</th>
+      <th>Start</th>
+      <th>Valid</th>
+      <th>Binding State</th>
+      <th>Sets</th>
+      <th>Ethernet Address</th>
+      <th>Bootstrapper logs</th>
+      <th>Celery logs</th>
+      <th>Device Status</th>
+      <th>DHCP Logs</th>
+    </tr>
+  {% endif %}
+    <tr>
+      <td>{{lease.ip}}</td>
+      <td>{{lease.hardware}}</td>
+      <td>{{lease.hostname}}</td>
+      <td>{{lease.options}}</td>
+      <td>{{lease.start}}</td>
+      <td>{{lease.valid}}</td>
+      <td>{{lease.binding_state}}</td>
+      <td>{{lease.sets}}</td>
+      <td>{{lease.ethernet}}</td>
+      <td><a href="/logs/bootstrapper?searchfilter={{lease.ip}}">Bootstrapper Logs</a></td>
+      <td><a href="/logs/celery?searchfilter={{lease.ip}}">Celery logs</a></td>
+      <td><a href="/status/ip/{{lease.ip}}">Device status</a></td>
+      <td><a href="/logs/dhcp?ip={{lease.ip}}">DHCP Log</a></td>
+    </tr>
+  {% if loop.last %}
+    </table>
+  {% endif %}
+  {% else %}
+  <p>No dhcp leases found</p>
+  {% endfor %}
+{% endblock %}

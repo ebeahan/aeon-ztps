@@ -12,3 +12,7 @@
 
 - name: start DCHP service
   service: name=isc-dhcp-server enabled=yes state=started
+
+ -name: sudoers for aeon ZTP helper scripts
+  copy: src=aeon-ztp.conf dest=/etc/sudoers.d mode=755
+

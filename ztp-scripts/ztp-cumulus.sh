@@ -15,11 +15,14 @@ trap error ERR
 
 LOCK_FILE=/mnt/persist/aeon-ztp.lock
 
-
-SERVER_PORT="8080"
-SERVER=$(grep -m 1 dhcp-server /var/lib/dhcp/dhclient.eth0.leases | awk '{ print $3 }' | tr --delete ';')
-
-HTTP="http://${SERVER}:${SERVER_PORT}"
+PROVISION_URL=$(grep -m1 'cumulus-provision-url' /var/lib/dhcp/dhclient.eth0.leases | awk -F "/" '{print $3}')
+if [ -n "$PROVISION_URL" ]; then
+    HTTP="http://${PROVISION_URL}"
+else
+     SERVER_PORT="8080"
+     SERVER=$(grep -m 1 dhcp-server /var/lib/dhcp/dhclient.eth0.leases | awk '{ print $3 }' | tr --delete ';')
+     HTTP="http://${SERVER}:${SERVER_PORT}"
+fi
 
 echo ""
 echo "-------------------------------------"

@@ -1,0 +1,11 @@
+{% if g.ip %}
+<ul>Stats for {{ g.ip }}: 
+  <li><a href="/status/ip/{{g.ip}}">Device Status</a></li>
+  <li><a href="/dhcp?ip={{g.ip}}">DHCP Leases</a></li>
+  <li><a href="/logs/tftp?searchfilter={{g.ip}}">TFTP Logs</a></li>
+  <li><a href="/logs/celery?searchfilter={{g.ip}}">Celery Logs</a></li>
+  <li><a href="/logs/bootstrapper?searchfilter={{g.ip}}">Bootstrapper</a></li>
+  <li><a href="/logs/nginx-access?searchfilter={{g.ip}}">Nginx Access</a></li>
+  <li><a href="/logs/nginx-error?searchfilter={{g.ip}}">Nginx Error</a></li>
+</ul>
+{% endif %}

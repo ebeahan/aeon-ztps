@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+
+    <table class="table table-condensed">
+    <tr><th>Vendor</th><th>Path</th><th>Config filename</th><th>Default firmware</th><th>Firmware present?</th><th>Image</th></tr>
+
+{% for os in list %}
+  <tr><td>{{ os.vendor }}</td><td>{{ os.path }}</td><td>{{ os.config_filename }}</td><td>{{ os.default_image }}</td><td>{{ os.check_firmware }}</td><td>{{ os.image }}</td></tr>
+{%  endfor  %}
+    </table>
+
+{% endblock %}

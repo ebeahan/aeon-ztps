@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content -%}
+{% block meta %}
+<link href="/static/css/pygments.css" rel="stylesheet" />
+{% endblock %}
+
+<ol class="breadcrumb">
+  {# <li><a href="{{ url_for('browse') }}">browse</a></li> #}
+  <li><a href="{{ url_for('browse') }}">browse</a></li>
+{% if folder != '/' %}
+  {% for crumb in folder.split('/') -%}
+    {% if loop.last %}
+    <li class="active"><a href="/view/{{ folder }}">{{ crumb }}</a></li>
+    {% else %}
+     <li><a href="/browse/{{ prev }}{{ crumb }}">{{ crumb }}</a></li>
+    {% endif %}
+  {% endfor %}
+{% endif %}
+</ol>
+
+{{ stat }}
+<table>
+<tr><td><p>File name</p></tr></td>
+<tr><td><p>File size </p></tr></td><td>{{ stat.size }} </td></tr>
+</table>
+<div class="highlight">
+{{ content|safe }}
+</div>
+{% endblock %}
