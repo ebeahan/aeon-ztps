@@ -47,3 +47,6 @@
 - name: install aztp-db-flush utility
   file: state=link src={{ Install_dir }}/bin/aztp-db-flush
         dest=/usr/local/bin/aztp-db-flush
+
+- name: sudoers for aeon ZTP helper scripts
+  copy: src=aeon-ztp.conf dest=/etc/sudoers.d mode=600
