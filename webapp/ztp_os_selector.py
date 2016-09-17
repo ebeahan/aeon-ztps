@@ -73,6 +73,7 @@ class Vendor:
         path (str): Filesystem location required to upload vendor files to
         image (str): Filesystem location of specific firmware file, eg /opt/downloads/eos/arista-3.4.swi
         check_firmware (bool): Checks if the expected firmware resides on the filesystem properly
+        default_image (str): Default vendor image filename expected from os-selector.cfg
     """
     def __init__(self, vendor):
         """
@@ -80,12 +81,17 @@ class Vendor:
             vendor (str): Name of the vendor to search for (eg: eos)
         """
         self.vendor = vendor
-        _data = get(vendor)
-        self.default_image = _data['default']['image']
-        #self.default_version = _data['default']['exact_match']
-        self.config_filename = os.path.join(_AEON_TOPDIR, 'etc/profiles/default/{vendor}/os-selector.cfg'.format(vendor=vendor))
         self.path = os.path.join(_AEON_TOPDIR,'vendor_images/{vendor}'.format(vendor=vendor))
-        self.image = os.path.join(self.path, self.default_image)
-        self.check_firmware = os.access(os.path.join(self.path, self.default_image), os.R_OK)
+        self.config_filename = os.path.join(_AEON_TOPDIR,'etc/profiles/default/{vendor}/os-selector.cfg'.format(vendor=vendor))
+        try:
+            _data = get(vendor)
+            self.default_image = _data['default']['image']
+            #self.default_version = _data['default']['exact_match']
+            self.image = os.path.join(self.path, self.default_image)
+            self.check_firmware = os.access(os.path.join(self.path, self.default_image), os.R_OK)
+        except IOError:
+            self.check_firmware = False
+            self.default_image = "Missing Config"
+
 
 
