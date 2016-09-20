@@ -5,30 +5,30 @@
     </div> <!-- /.navbar-header -->
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
-        <li><a href="{{ url_for('browse') }}">Browse files</a></li>
+        <li><a href="{{ url_for('web.browse') }}">Browse files</a></li>
         <li class="dropdown">
           <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Logs<span class="caret"></span></a>
           <ul class="dropdown-menu">
-            <li><a href="{{ url_for('show_log') }}">List Logs</a></li>
+            <li><a href="{{ url_for('web.show_log') }}">List Logs</a></li>
             <li role="separator" class="divider"></li>
-            <li><a href="{{ url_for('show_log') }}?all=y">All logs</a></li>
+            <li><a href="{{ url_for('web.show_log') }}?all=y">All logs</a></li>
             {% for log in g.valid_logs -%}
-              <li><a href="{{ url_for('show_log') }}?{{log}}=y">{{log}}</a></li>
+              <li><a href="{{ url_for('web.show_log') }}?{{log}}=y">{{log}}</a></li>
             {% endfor %}
           </ul> 
         </li>
         <li class="dropdown">
-          <li><a href="{{ url_for('status') }}">ZTP Status</a></li>
-          <li><a href="{{ url_for('dhcp_leases') }}">DHCP Leases</a></li>
+          <li><a href="{{ url_for('web.status') }}">ZTP Status</a></li>
+          <li><a href="{{ url_for('web.dhcp_leases') }}">DHCP Leases</a></li>
         </li>
        <li class="dropdown">
          <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">About<span class="caret"></span>
          <ul class="dropdown-menu">
-           <li><a href="{{ url_for('site_map') }}">Site map</a></li>
+           <li><a href="{{ url_for('web.site_map') }}">Site map</a></li>
            <li><a href="help">help</a></li>
            <li><a href="license">License</a></li>
          </ul>
-         <li><a href="{{ url_for('firmware') }}">Firmware</a></li>
+         <li><a href="{{ url_for('web.firmware') }}">Firmware</a></li>
       </ul> <!-- ./nav -->
     </div> <!-- ./navbar -->
   </div> <!-- ./container -->

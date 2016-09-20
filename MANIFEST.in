@@ -1,0 +1,14 @@
+include requirements.txt
+graft packages
+graft aeon_ztp/plugins
+graft aeon_ztp/static
+graft aeon_ztp/web/templates
+graft aeon_ztp/web/static
+graft aeon_ztp/bin
+graft aeon_ztp/downloads
+graft aeon_ztp/etc
+graft aeon_ztp/vendor_images
+graft aeon_ztp/ztp-scripts
+graft aeon_ztp/install
+
+global-exclude *.py[co]

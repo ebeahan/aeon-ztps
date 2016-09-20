@@ -1,4 +1,3 @@
-from isc_dhcp_leases.iscdhcpleases import IscDhcpLeases
 import subprocess
 import pwd
 import os
@@ -18,7 +17,7 @@ def run(cmd):
         p = subprocess.Popen(cmd.split(),
                          stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE
-                         )
+                             )
         out, err = p.communicate()
         if err:
             raise OSError('{err} {out}'.format(out=out, err=err))
@@ -28,6 +27,7 @@ def run(cmd):
         raise
     except:
         raise
+
 
 def sudo(cmd):
     whoami = pwd.getpwuid(os.getuid())[0]
@@ -40,18 +40,18 @@ def sudo(cmd):
 
 
 def flush_dhcp():
-# test code
+    # test code
     try:
         return sudo("/usr/local/bin/dhcpd-reset")
-        #sudo("/bin/systemctl restart isc-dhcp-server")
+        # sudo("/bin/systemctl restart isc-dhcp-server")
     except OSError as e:
         return False, '{}'.format(e)
 
 
 def aosetc_import():
-# test code
+    # test code
     try:
         return sudo("/opt/aosetc/bin/aeon-ztp")
-        #sudo("/bin/systemctl restart isc-dhcp-server")
+        # sudo("/bin/systemctl restart isc-dhcp-server")
     except OSError as e:
         return False, '{}'.format(e)

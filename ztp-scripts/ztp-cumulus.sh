@@ -97,4 +97,3 @@ kickstart_aeon_ztp
 
 ## exit cleanly, no reboot
 exit 0
-

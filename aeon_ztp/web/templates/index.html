@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="jumbotron">
+    <h1>Welcome to Aeon ZTP Server</h1>
+    <p>This software makes it easy to boot up your NOS to work with your infrastructure.</p>
+    <p>Check if <a href="{{ url_for('web.status') }}">devices are ready</a></p>
+    <p>Open some <a href="{{ url_for('web.show_log') }}">log files</a> <span class="badge">5</span></p>
+    <p>Report on <a href="{{ url_for('web.dhcp_leases') }}">dhcp status</a></p>
+  </div>
+{% endblock %}

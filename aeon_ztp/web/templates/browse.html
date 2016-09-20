@@ -3,7 +3,7 @@
 
 <ol class="breadcrumb">
   {# <li><a href="{{ url_for('browse') }}">browse</a></li> #}
-  <li><a href="{{ url_for('browse') }}">browse</a></li>
+  <li><a href="{{ url_for('web.browse') }}">browse</a></li>
 {% if dirpath is defined and dirpath != '/' %}
   {% for crumb in dirpath.split('/') -%}
     {% if loop.last %}

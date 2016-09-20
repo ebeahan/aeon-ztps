@@ -8,24 +8,27 @@
 #
 # TODO: Find a better way of checking for the appropriate syslog filename or an API dedicated to find it
 # (eg /var/log/messages /var/log/syslog)
-import pwd
-import os
-from aeon_ztp_app import app
-from flask import send_from_directory, render_template, url_for, g, request, flash, redirect
-import ztp_db
-from isc_dhcp_leases.iscdhcpleases import IscDhcpLeases
-from werkzeug.utils import secure_filename
-import re
-import magic
 import errno
-from flaskext.markdown import Markdown
+import os
+import pwd
+import re
+
+import aeon_ztp
+import magic
+from flask import Blueprint, send_from_directory, render_template, url_for, g, request, flash, redirect
+from flask import current_app as app
+# from flaskext.markdown import Markdown
+from isc_dhcp_leases.iscdhcpleases import IscDhcpLeases
 from pygments import highlight
-from pygments.lexers import get_lexer_for_filename
 from pygments.formatters import HtmlFormatter
-from pygments.util import ClassNotFound
+from pygments.lexers import get_lexer_for_filename
 from pygments.lexers.special import TextLexer
-import ztp_os_selector
-from ztp_sudo import flush_dhcp, aosetc_import
+from pygments.util import ClassNotFound
+from werkzeug.utils import secure_filename
+
+from aeon_ztp import ztp_os_selector
+from aeon_ztp.api import models
+from ztp_sudo import flush_dhcp
 
 _syslog_file = "/var/log/syslog"
 _dhcp_leases_file = '/var/lib/dhcp/dhcpd.leases'
@@ -34,11 +37,15 @@ _AEON_TOPDIR = os.getenv('AEON_TOPDIR')
 # TODO _AEON_SYSLOG = os.getenv('AEON_SYSLOG')
 # TODO _AEON_DHCP = os.getenv('AEON_DHCP')
 
+web = Blueprint('web', __name__, template_folder='templates', static_url_path='/web/static', static_folder='static')
 
-Markdown(app)
+# Commenting this out. When this web/views.py is imported by create_app, this command is trying to
+# use the app object before it's fully initialized.
+# TODO: Figure out how to make this work. Maybe it just needs to be in a function so that it's not run when this module is imported.
+# Markdown(app)
 
 
-@app.context_processor
+@web.context_processor
 def valid_logs():
     """ List of valid log files to query within Aeon-ZTP
 
@@ -88,7 +95,6 @@ def valid_logs():
 
 def scrape_file(filename, search, searchfilter='', lineno=0):
     """ Scrapes target filename for searching line entries from 'search' variable
-   
     Args:
         search string: String to look for
         filter string: refine results
@@ -212,7 +218,7 @@ def valid_paths():
 
 # FLASK ROUTING
 
-@app.before_request
+@web.before_request
 def _global_variables():
     """ Global variable loading for flask template rendering
     """
@@ -225,14 +231,14 @@ def _global_variables():
     g.alert = dict(status=None, reason=None)
 
 
-@app.route('/')
+@web.route('/')
 def index():
     """ Index page of web application
     """
     return render_template('index.html')
 
 
-@app.route('/vendor_images/<path:image>')
+@web.route('/vendor_images/<path:image>')
 def download_vendor_image(image):
     """ Downloads specified vendor binary image
 
@@ -246,7 +252,7 @@ def download_vendor_image(image):
     return send_from_directory(os.path.join(_AEON_TOPDIR, 'vendor_images'), image)
 
 
-@app.route('/etc/<path:image>')
+@web.route('/etc/<path:image>')
 def etc_image(image):
     """ Serves a file from the etc folder
     Args:
@@ -256,8 +262,8 @@ def etc_image(image):
     return send_from_directory(os.path.join(_AEON_TOPDIR, 'etc'), image)
 
 
-@app.route('/logs', defaults={'log': None})
-@app.route('/logs/<log>')
+@web.route('/logs', defaults={'log': None})
+@web.route('/logs/<log>')
 def show_log(log):
     """ Renders display of specified log file - if no log is specified, displays selection list of available logs.
 
@@ -303,7 +309,7 @@ def show_log(log):
     return render_template('show_log.html', lines=lines, log=log, checkbox=checkbox)
 
 
-@app.route('/sitemap')
+@web.route('/sitemap')
 def site_map():
     """ Renders a simple site map from links.html
 
@@ -316,17 +322,17 @@ def site_map():
     return render_template('links.html', links=links)
 
 
-@app.route('/status')
+@web.route('/status')
 def status():
     """ Renders a simple device status webpage for all ZTP-DB devices
     """
-    db = ztp_db.get_session()
-    devices = db.query(ztp_db.Device)
+    db = aeon_ztp.db.session
+    devices = db.query(models.Device)
     g.title = "Device Status"
     return render_template('status.html', devices=devices)
 
 
-@app.route('/status/ip/<ip>')
+@web.route('/status/ip/<ip>')
 def status_for_ip(ip):
     """ Returns a status page for specific IP address. (eg nxos, cumulus, eos)
 
@@ -334,14 +340,14 @@ def status_for_ip(ip):
         ip (str): dotted-quad IP address to check ZTP database for.
 
     """
-    db = ztp_db.get_session()
+    db = aeon_ztp.db.session
     g.ip = ip
-    devices = db.query(ztp_db.Device).filter(ztp_db.Device.ip_addr == ip)
+    devices = db.query(models.Device).filter(models.Device.ip_addr == ip)
     g.title = "Device Status"
     return render_template('status.html', devices=devices)
 
 
-@app.route('/status/os/<osname>')
+@web.route('/status/os/<osname>')
 def status_for_os(osname):
     """ Returns status page for specified OS list (eg nxos, cumulus, eos)
 
@@ -350,13 +356,13 @@ def status_for_os(osname):
 
 
     """
-    db = ztp_db.get_session()
-    devices = db.query(ztp_db.Device).filter(ztp_db.Device.os_name == osname)
+    db = aeon_ztp.db.session
+    devices = db.query(models.Device).filter(models.Device.os_name == osname)
     g.title = "Device Status"
     return render_template('status.html', devices=devices)
 
 
-@app.route('/status/hw/<hw>')
+@web.route('/status/hw/<hw>')
 def status_for_hw(hw):
     """ Status page for specific hardware type
 
@@ -364,12 +370,13 @@ def status_for_hw(hw):
         hw (str): Hardware type to filter by
 
     """
-    db = ztp_db.get_session()
-    devices = db.query(ztp_db.Device).filter(ztp_db.Device.hw_model == hw)
+    db = aeon_ztp.db.session
+    devices = db.query(models.Device).filter(models.Device.hw_model == hw)
     g.title = "Device Status"
     return render_template('status.html', devices=devices)
 
-@app.route('/dhcp/flush')
+
+@web.route('/dhcp/flush')
 def dhcp_flush():
     """ Flushes the current DHCP leases from the system """
     try:
@@ -381,8 +388,7 @@ def dhcp_flush():
         return redirect(url_for('dhcp_leases'), code=302)
 
 
-
-@app.route('/dhcp')
+@web.route('/dhcp')
 def dhcp_leases():
     """ Shows a webpage containing DHCP leases.  Uses isc_dhcp_leases package to parse text filel.
 
@@ -409,7 +415,7 @@ def dhcp_leases():
         whoami = pwd.getpwuid(os.getuid())[0]
         error = "Could not read DHCP Leases file - permission denied. Add {whoami} " \
                 "read access: {reason} ({code}) reading {filename}".format(
-            code=code, reason=reason, filename=_dhcp_leases_file, whoami=whoami)
+                    code=code, reason=reason, filename=_dhcp_leases_file, whoami=whoami)
         flash(error, 'danger')
         return render_template('dhcp.html')
 
@@ -420,7 +426,7 @@ def dhcp_leases():
     return render_template('error.html', error=error)
 
 
-@app.route('/upload/<path:folder>', methods=['POST'])
+@web.route('/upload/<path:folder>', methods=['POST'])
 def upload(folder):
     """ For uploading files and folders to specified paths.
 
@@ -465,9 +471,9 @@ def upload(folder):
         return browse(root=folder)
 
 
-@app.route('/browse', defaults={'root': '/'})
-@app.route('/browse/', defaults={'root': '/'})
-@app.route('/browse/<path:root>')
+@web.route('/browse', defaults={'root': '/'})
+@web.route('/browse/', defaults={'root': '/'})
+@web.route('/browse/<path:root>')
 def browse(root):
     """ Lists root, files, and file names in root folder
 
@@ -518,7 +524,7 @@ def browse(root):
 
 
 # TODO: constraint to POST or DELETE
-@app.route('/devices/delete/<ip>')
+@web.route('/devices/delete/<ip>')
 def delete_device(ip):
     """ Deletes a specific IP address device from ZTP database.
 
@@ -526,18 +532,18 @@ def delete_device(ip):
         ip (str): IP address to delete from the ZTP Database.
 
     """
-    db = ztp_db.get_session()
+    db = aeon_ztp.db.session
     g.ip = ip
-    deldevices = db.query(ztp_db.Device).filter(ztp_db.Device.ip_addr == ip)
+    deldevices = db.query(models.Device).filter(models.Device.ip_addr == ip)
     count = deldevices.count()
     deldevices.delete(synchronize_session=False)
     db.commit()
-    devices = db.query(ztp_db.Device)
+    devices = db.query(models.Device)
     flash('Deleted {} entries from ZTP DB'.format(count), 'success')
     return render_template('status.html', devices=devices)
 
 
-@app.route('/view/<path:filename>')
+@web.route('/view/<path:filename>')
 def view_file(filename):
     """ Views file with syntax highlighting (if applicable)
 
@@ -569,7 +575,7 @@ def view_file(filename):
         return render_template('view.html')
 
 
-@app.route('/delete/<path:filename>')
+@web.route('/delete/<path:filename>')
 def delete_file(filename):
     """ Deletes specified file from the filesystem based on path
         Only specific paths/filenames can be deleted as per allowed_folder and allowed_path functions.
@@ -596,7 +602,8 @@ def delete_file(filename):
                                                                                   code=code), 'danger')
         return browse(root=folder)
 
-@app.route('/firmware')
+
+@web.route('/firmware')
 def firmware():
     """ Displays a simple status page describing if vendor file images are on the disk or not, and what their versions
         are expected to be.

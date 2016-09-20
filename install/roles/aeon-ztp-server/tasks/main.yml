@@ -8,9 +8,13 @@
   with_items:
     - bin
     - etc
-    - webapp
+    - aeon_ztp
     - vendor_images
     - downloads
+    - setup.py
+    - MANIFEST.in
+    - requirements.txt
+    - packages
 
 - name: make bin items executable
   shell: chmod +x {{ Install_dir }}/bin/*
@@ -47,6 +51,23 @@
 - name: install aztp-db-flush utility
   file: state=link src={{ Install_dir }}/bin/aztp-db-flush
         dest=/usr/local/bin/aztp-db-flush
+
+- name: Build aeon-ztp python from source
+  shell: python setup.py sdist
+  args:
+    chdir: "/opt/aeonztps/"
+
+- find: paths="/opt/aeonztps/dist" patterns="aeon-ztp*"
+  register: search_results
+
+- name: Install aeon-ztp from local package
+  pip:
+    name: "{{ search_results.files[0].path }}"
+
+- name: TEMPORARY - Install aeon-venos from local package
+  pip:
+    name: "aeon-venos-0.2.0.tar.gz"
+    chdir: "/opt/aeonztps/packages"
 
 - name: sudoers for aeon ZTP helper scripts
   copy: src=aeon-ztp.conf dest=/etc/sudoers.d mode=600

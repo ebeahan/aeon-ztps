@@ -10,6 +10,7 @@ import yaml
 
 _AEON_TOPDIR = os.getenv('AEON_TOPDIR')
 
+
 def vendor_list():
     """ Returns a list of software currently supported by Aeon-ZTP server by name.
 
@@ -22,6 +23,7 @@ def vendor_list():
 
     """
     return ['nxos', 'eos', 'cumulus']
+
 
 def load_yaml(filename):
     """ Loads a YAML file from the filesystem and converts it to a usable python dictionary.
@@ -63,7 +65,6 @@ def get(vendor):
     return load_yaml(filename)
 
 
-
 class Vendor:
     """ Describes an Aeon-ZTP vendor specification, focusing on firmware locations
 
@@ -81,17 +82,14 @@ class Vendor:
             vendor (str): Name of the vendor to search for (eg: eos)
         """
         self.vendor = vendor
-        self.path = os.path.join(_AEON_TOPDIR,'vendor_images/{vendor}'.format(vendor=vendor))
-        self.config_filename = os.path.join(_AEON_TOPDIR,'etc/profiles/default/{vendor}/os-selector.cfg'.format(vendor=vendor))
+        self.path = os.path.join(_AEON_TOPDIR, 'vendor_images/{vendor}'.format(vendor=vendor))
+        self.config_filename = os.path.join(_AEON_TOPDIR, 'etc/profiles/default/{vendor}/os-selector.cfg'.format(vendor=vendor))
         try:
             _data = get(vendor)
             self.default_image = _data['default']['image']
-            #self.default_version = _data['default']['exact_match']
+            # self.default_version = _data['default']['exact_match']
             self.image = os.path.join(self.path, self.default_image)
             self.check_firmware = os.access(os.path.join(self.path, self.default_image), os.R_OK)
         except IOError:
             self.check_firmware = False
             self.default_image = "Missing Config"
-
-
-
