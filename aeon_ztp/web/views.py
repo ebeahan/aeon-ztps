@@ -538,9 +538,8 @@ def delete_device(ip):
     count = deldevices.count()
     deldevices.delete(synchronize_session=False)
     db.commit()
-    devices = db.query(models.Device)
     flash('Deleted {} entries from ZTP DB'.format(count), 'success')
-    return render_template('status.html', devices=devices)
+    return redirect(url_for('web.status'))
 
 
 @web.route('/view/<path:filename>')
