@@ -1,4 +1,6 @@
 # Aeon-ZTPS
+Develop branch [![Build Status](https://travis-ci.com/Apstra/aeon-ztps.svg?token=fpLAfpq4bNerkaXTm7dF&branch=develop)](https://travis-ci.com/Apstra/aeon-ztps)
+
 Aeon-ZTPS is a universal Zero-Touch-Provisioning server for data center infrastructure systems.  Aeon-ZTPS was developed specifically to address the need for network engineers to bootstrap their datacenter switches without having to deal with the differences in the underlying NOS mechanisms.
 
 Aeon-ZTPS runs as an Ubuntu 16.04LTS server using the Flask framework and a simple SQLite database.  The system provides both a REST/JSON API and a GUI.  The Aeon-ZTPS can optionally provide the DHCP service (included, but not enabled by default).
