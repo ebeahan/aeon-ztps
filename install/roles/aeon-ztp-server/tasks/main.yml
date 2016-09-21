@@ -1,3 +1,9 @@
+- name: Install netaddr pip package on Ansible host (if this fails, you must manually install netaddr on your host)
+  become: False
+  pip:
+    name: netaddr
+  delegate_to: localhost
+
 - name: copy aeon-ztps conf file
   template: src=aeonztp.conf dest=/etc/aeonztp.conf owner=root group=root mode=644
 
