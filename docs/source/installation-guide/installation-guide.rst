@@ -10,7 +10,11 @@ perform the installation process on any other Ubuntu 16.04 LTS system.
 .. contents::
    :local:
 
+<<<<<<< HEAD
+.. |box| unicode:: ☐
+=======
 .. |box|  unicode:: ☐
+>>>>>>> develop
 
 .. |sp| unicode:: U+00A0
 
@@ -62,7 +66,7 @@ versions, you may run into issues.  Note that many of these versions are not the
 this writing.
 
     Vagrant_ |br|
-        1.8.4  — use "vagrant --version" to check
+        1.8.4 or later  — use "vagrant --version" to check
         You will need the Vagrant "vbguest" pluging installed.  To install, use: "vagrant plugin install vagrant-vbguest"
 
     VirtualBox_ |br|
@@ -72,7 +76,7 @@ this writing.
         .com/article/2986118/security/how-to-modify-system-integrity-protection-in-el-capitan.html>`_
 
     Ansible_ |br|
-        version 1.9.2   — use "ansible --version" to check.  Installation instructions are located `here
+        version 2.0 or later   — use "ansible --version" to check.  Installation instructions are located `here
         <http://docs.ansible.com/ansible/intro_installation.html#latest-releases-on-mac-osx>`_.
 
 

@@ -17,7 +17,9 @@ Contents:
 
    getting-started-guide/getting-started-guide
    installation-guide/installation-guide
-   nos-setup-guide
+   nos/cumulus/cumulus-setup-guide
+   nos/eos/eos-setup-guide
+   nos/nxos/nxos-setup-guide
 
 
 Indices and tables
