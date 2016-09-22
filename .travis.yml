@@ -6,4 +6,4 @@ script:
 env:
   - TOXENV=py27
   - TOXENV=flake8
-  - TOXENV=coverage
+  - TOXENV=coverage_travis
