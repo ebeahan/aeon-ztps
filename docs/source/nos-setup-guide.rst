@@ -1,3 +1,0 @@
-Network OS Setup Guide
-======================
-

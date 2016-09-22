@@ -29,7 +29,22 @@ If you are using VirtualBox, tou can build and install the Aeon-ZTP serverby inv
 
 # Screenshots
 
-*need to add a few screen shots of the GUI here*
+Aeon-ZTPS includes a web-based GUI dashboards to provide visibility into the device bootstrap process.  The following
+illustrates the devices dashboard:
+
+![Dashbaord-Devices](docs/source/dashboard-devices.png)
+
+Aeon-ZTPS includes comprehensible logging.  The logging dashboard allows you to inspect and filter the various log
+files that are used by the system:
+
+![Dashbaord-Logs](docs/source/dashboard-logs.png)
+
+Aeon-ZTPS includes a REST/JSON based API.  The following illustrates the `/api/devices` output showing the device
+ZTP status:
+
+![API-devices](docs/source/api-devices.png)
+
+
 
 # License
 Apache 2.0
