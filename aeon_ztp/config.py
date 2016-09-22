@@ -12,6 +12,7 @@ class Config(object):
     CELERY_BROKER_URL = 'amqp://'
     CELERY_RESULT_BACKEND = 'rpc://'
     SECRET_KEY = 'AHJFauf2wUAWFJAwfhyawfhAWFUHJAWEUFOawefuaWEFUWAEFUAWEFahfaF43*3'
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 
 class ProductionConfig(Config):

@@ -29,4 +29,5 @@ def create_app(conf=None):
     @app.before_first_request
     def initialize_database():
         db.create_all()
+
     return app

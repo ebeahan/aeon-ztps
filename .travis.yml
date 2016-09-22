@@ -3,3 +3,7 @@ install:
   - pip install tox
 script:
   - tox
+env:
+  - TOXENV=py27
+  - TOXENV=flake8
+  - TOXENV=coverage

@@ -11,12 +11,23 @@
 #
 
 from setuptools import setup, find_packages
-from glob import glob
+from setuptools.command.test import test as TestCommand
+import sys
 
 # parse requirements
 req_lines = [line.strip() for line in open(
     'requirements.txt').readlines()]
 install_reqs = list(filter(None, req_lines))
+
+class Tox(TestCommand):
+    def finalize_options(self):
+        TestCommand.finalize_options(self)
+        self.test_args = []
+        self.test_suite = True
+    def run_tests(self):
+        import tox
+        errcode = tox.cmdline(self.test_args)
+        sys.exit(errcode)
 
 setup(
     name="aeon-ztp",
@@ -30,6 +41,8 @@ setup(
     include_package_data=True,
     install_requires=install_reqs,
     zip_safe=False,
+    tests_require=['tox'],
+    cmdclass = {'test': Tox},
     classifiers=[
         'Private :: Do Not Upload',
         'Development Status :: 3 - Alpha',
