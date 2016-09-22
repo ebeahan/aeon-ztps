@@ -147,26 +147,24 @@ Maintenance Operations
 
         .. code-block:: shell
 
-            admin@aeonztps# aztp-db-flush
+            user@host$ curl -X DELETE http://<aeonztps>:8080/api/devices?all=1
             {
               "message": "all records deleted",
               "ok": true
             }
+
 
     * :strong:`Delete Specific IP-Address from Aeon-ZTPS device database`
         You can remove a specific device from the database using the following command at the Linux prompt:
 
         .. code-block:: shell
 
-            admin@aeonztps# aztp-db-rm 192.168.59.59
+            user@host$ curl -X DELETE http://<aeonztps>:8080/api/devices?ip_addr=192.168.59.54
             {
-              "message": "192.168.59.210 removed",
+              "count": 1,
+              "message": "1 records deleted",
               "ok": true
             }
-
-        .. attention::
-
-            This command does not yet exist.
 
 ..
 

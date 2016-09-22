@@ -127,11 +127,12 @@ def _get_devices():
     if request.args:
         try:
             recs = find_devices(db, models.Device, request.args)
+            if recs.count() == 0:
+                return jsonify(ok=False,
+                               message='Not Found: %s' % request.query_string), 404
+
             items = [to_json.dump(rec).data for rec in recs]
             return jsonify(count=len(items), items=items)
-
-        except NoResultFound:
-            return jsonify(ok=False, message='Not Found'), 404
 
         except AttributeError:
             return jsonify(ok=False, message='invalid arguments'), 500
@@ -154,6 +155,11 @@ def _create_device():
 
     db = aeon_ztp.db.session
     table = models.Device
+
+    if not ('os_name' in device_data and 'ip_addr' in device_data):
+        return jsonify(
+            ok=False, message="Error: rqst-body missing os_name, ip_addr values",
+            rqst_data=device_data), 400
 
     # ----------------------------------------------------------
     # check to see if the device already exists, and if it does,
@@ -238,8 +244,6 @@ def _put_device_facts():
 
     try:
         rec = find_device(db, table, rqst_data).one()
-        rec.ip_addr = rqst_data.get('ip_addr')
-        rec.os_name = rqst_data.get('os_name')
         rec.serial_number = rqst_data.get('serial_number')
         rec.hw_model = rqst_data.get('hw_model')
         rec.os_version = rqst_data.get('os_version')
@@ -280,14 +284,15 @@ def _delete_devices():
         try:
             recs = find_devices(db, models.Device, request.args)
             n_recs = recs.count()
+            if n_recs == 0:
+                return jsonify(ok=False,
+                               message='Not Found: %s' % request.query_string), 404
+
             recs.delete(synchronize_session=False)
             db.commit()
             return jsonify(
                 ok=True, count=n_recs,
                 message='{} records deleted'.format(n_recs))
-
-        except NoResultFound:
-            return jsonify(ok=False, message='Not Found'), 404
 
         except AttributeError:
             return jsonify(ok=False, message='invalid arguments'), 500

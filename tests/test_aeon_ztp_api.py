@@ -161,18 +161,16 @@ def test_create_device_with_existing_device(client, device):
     assert rvd['rqst_data']['ip_addr'] == device['ip_addr']
 
 
-# Skipping this test until fix has been merged
-@pytest.mark.skip
 def test_create_device_with_bad_data(client):
     device_info = {"ip_addr": "10.0.0.11",
                    "bad_data": "bad_data"}
     rv = client.post('/api/devices',
                      data=json.dumps(device_info),
                      content_type='application/json')
-    assert rv.status_code == 200
-    # rvd = json.loads(rv.data)
-    # assert rvd['message'] == 'device added'
-    # assert rvd['data'] == device_info
+    assert rv.status_code == 400
+    rvd = json.loads(rv.data)
+    assert rvd['message'].startswith('Error')
+    assert not rvd['ok']
 
 
 @patch('aeon_ztp.db.session.commit')
@@ -200,15 +198,13 @@ def test_get_devices_with_args(client, device):
     assert device['os_name'] == 'NXOS'
 
 
-# Bug found while writing tests
-# Skipping this one until code has been fixed
-@pytest.mark.skip
 def test_get_devices_get_no_result(client):
     rv = client.get('/api/devices?os_name=LINKSYS',
                     content_type='application/json')
     rvd = json.loads(rv.data)
     assert rv.status_code == 404
-    assert rvd['count'] == 0
+    assert not rvd['ok']
+    assert rvd['message'].startswith('Not Found')
 
 
 def test_get_devices_invalid_args(client):
@@ -307,15 +303,12 @@ def test_delete_devices(client, device):
     assert rvd['count'] == 1
 
 
-# Bug found while writing tests
-# Skipping this one until code has been fixed
-@pytest.mark.skip
 def test_delete_devices_no_result_found(client, device):
     rv = client.delete('/api/devices?ip_addr=9.9.9.9')
     rvd = json.loads(rv.data)
     assert rv.status_code == 404
     assert not rvd['ok']
-    assert rvd['message'] == 'Not Found'
+    assert rvd['message'].startswith('Not Found')
 
 
 def test_delete_devices_attribute_error(client):
