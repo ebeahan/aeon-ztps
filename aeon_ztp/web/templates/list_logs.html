@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+
+{%- for log in logs -%}
+  {% if loop.first %}
+  <table class="table">
+    <tr><th>Log Name</th><th>Filename</th><th>Description</th></tr>
+  {% endif %}
+    <tr><td><a href="/logs/{{ log }}">/logs/{{log}}<a/></td><td>{{log['filename']}}</td><td>{{ log.description }}</td></tr>
+  {% if loop.last %}
+  </table>
+  {% endif %}
+{% else %}
+<p>No logs found</p>
+{% endfor %}
+{% endblock %}

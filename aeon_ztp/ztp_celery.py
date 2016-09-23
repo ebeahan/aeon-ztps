@@ -89,14 +89,12 @@ def do_finalize(server, os_name, target, log):
 def do_bootstrapper(server, os_name, target, log):
     prog = '%s/bin/%s-bootstrap' % (_AEON_DIR, os_name)
 
-    user_args = '-U AEON_TUSER' if os_name != 'cumulus' else '--user cumulus'    # TODO fix hack
-
     cmd_args = [
         prog,
         '--target %s' % target,
         '--server %s' % server,
         '--topdir %s' % _AEON_DIR,
-        user_args,
+        '-U AEON_TUSER',
         '-P AEON_TPASSWD',
         '--logfile %s' % _AEON_LOGFILE
     ]

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+
+<ol class="breadcrumb">
+  {# <li><a href="{{ url_for('browse') }}">browse</a></li> #}
+  <li><a href="{{ url_for('web.browse') }}">browse</a></li>
+{% if dirpath is defined and dirpath != '/' %}
+  {% for crumb in dirpath.split('/') -%}
+    {% if loop.last %}
+    <li class="active"><a href="/browse/{{ prev }}{{ crumb }}">{{ crumb }}</a></li>
+    {% else %}
+     <li><a href="/browse/{{ prev }}{{ crumb }}">{{ crumb }}</a></li>
+    {% endif %}
+  {% endfor %}
+{% endif %}
+</ol>
+
+<table class="table table-condensed">
+  <tr><th>Folder Name</th></td></tr>
+  {% if dirpath != '/' %}
+    <tr><td><a href="/browse/{{parent}}">Parent directory</a></td></tr>
+  {% endif %}
+{% for folder in dirnames -%}
+    {% if dirpath == '/' %}
+    <tr><td><a href="/browse/{{folder}}"</td>{{folder}}</tr>
+    {% else %}
+  <tr><td><a href="/browse/{{dirpath}}/{{folder}}"</td>{{folder}}</tr>
+    {% endif %}
+{% endfor %}
+</table>
+
+
+{% for file in files -%}
+  {% if loop.first %}
+    <table class="table table-hover">
+    <tr><th>Filename</th><th>Mime type</th><th>Size</th><th>Modification time</th><th>Creation time</th><th>View</th><th>Download</th><th>Delete</th></tr>
+  {% endif %}
+  <tr class="{{ loop.cycle('odd', 'even') }}"><td>{{file.name}}</td><td>{{file.mimetype}}<td>{{file.size|filesizeformat}}</td><td>{{file.mtime}}</td><td>{{file.ctime}}<td><a href="/view/{{ dirpath}}/{{file.name}}">view</a></td><td><a href="/download/{{dirpath}}/{{file.name}}">Download</a></td><td><a href="/delete/{{dirpath}}/{{file.name}}">Delete</a></td></tr>
+  {% if loop.last %}
+    </table>
+  {% endif %}
+{% endfor %}
+
+{% if not dirpath == '/' %}
+<p>Upload File to {{ dirpath }}
+
+<form action="/upload/{{dirpath}}" method=post enctype=multipart/form-data class="form-inline">
+  <div class="form-group">
+    <label for="inputFile">File Input</label>
+    <input type="file" id="file" name="file">
+    <p class="help-block">Browse to the file you wish to upload</p>
+
+    <button type="submit" value="upload" class="btn btn-default">Submit</button>
+</form>
+</p>
+
+{% endif %}
+
+{% endblock %}

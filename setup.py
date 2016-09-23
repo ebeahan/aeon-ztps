@@ -11,32 +11,40 @@
 #
 
 from setuptools import setup, find_packages
-from glob import glob
+from setuptools.command.test import test as TestCommand
+import sys
 
 # parse requirements
 req_lines = [line.strip() for line in open(
     'requirements.txt').readlines()]
 install_reqs = list(filter(None, req_lines))
 
-libdir = 'pylib'
-packages = find_packages(libdir)
+class Tox(TestCommand):
+    def finalize_options(self):
+        TestCommand.finalize_options(self)
+        self.test_args = []
+        self.test_suite = True
+    def run_tests(self):
+        import tox
+        errcode = tox.cmdline(self.test_args)
+        sys.exit(errcode)
 
 setup(
     name="aeon-ztp",
-    namespace_packages=['aeon'],
-    version="0.2.0",
+    version="0.2.1",
     author="Jeremy Schulman",
     author_email="jeremy@apstra.com",
     description=("AEON ZTP Server"),
     license="Apache 2.0",
     keywords="networking automation vendor-agnostic",
-    package_dir={'': libdir},
-    packages=packages,
+    packages=find_packages(exclude=["tests", ".*"]),
+    include_package_data=True,
     install_requires=install_reqs,
-    data_files=[
-        ('images', glob('images/*'))
-    ],
+    zip_safe=False,
+    tests_require=['tox'],
+    cmdclass = {'test': Tox},
     classifiers=[
+        'Private :: Do Not Upload',
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
         'Intended Audience :: Information Technology',

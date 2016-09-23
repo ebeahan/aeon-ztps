@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<form class="form-inline" action="" method="GET">
+  <div class="form-group" id="logtypes">
+   {% for i in g.valid_logs %}
+     {% if i in checkbox %}
+     {% set checked = 'checked' %}
+     {% else %}
+     {% set checked = '' %}
+     {% endif %}
+     <div class="input-group">
+       <span class="input-group-addon">
+         <input type="checkbox" name="{{i}}" {{ checked }} value="y">
+       </span>
+       <span class="input-group-addon">
+         {{ i }}
+       </span>
+     </div> 
+   {% endfor %}
+  </div>
+  
+  <div class="input-group">
+    <span class="input-group-addon">Filter Text</span>
+    <input type="text" name="searchfilter" placeholder="192.168.1.100" class="form-control" aria-describedby="basic-addon1" value="{{ request.args.get('searchfilter') or "" }}">
+    <span class="input-group-addon">Refresh Interval</span>
+    <input type="text" value="{{ request.args.get('refresh') or "" }}" name="refresh" placeholder="100" class="form-control" aria-describedby="basic-addon1">
+    <span class="input-group-addon">Lines</span>
+    <input type="text" value="{{ request.args.get('lineno') or "" }}" name="lineno" placeholder="10" class="form-control" aria-describedby="basic-addon1">
+    <span class="input-group-btn" id="basic-addon1">
+      <button class="btn btn-default" type="submit">Go!</button>
+    </span>
+    <span class="input-group-addon"><label id="reset">reset</label></span>
+  </div>
+</form>
+
+<h3>Viewing {{ lines|count }} lines</h3>
+<pre class="pre-scrollable">
+{%- for line in lines -%}
+{{ line }}
+{% else %}
+No log entries found
+{% endfor %}
+</pre>
+</p>
+
+{% block script %}
+<!-- Clear the form -->
+<script>
+$( "#reset" ).click(function() {
+  $('input').val('');
+  $('.logtypes').attr(checked, true);
+});
+</script>
+
+{% endblock script %}
+{% endblock %}

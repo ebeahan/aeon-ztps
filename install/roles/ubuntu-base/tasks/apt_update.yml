@@ -13,5 +13,5 @@
 - name: install aptitude
   apt: name=aptitude state=present
 
-- name: upgrade Linux distro ... please be patient
-  apt: update_cache=yes upgrade=yes
+#- name: upgrade Linux distro ... please be patient
+#  apt: update_cache=yes upgrade=yes

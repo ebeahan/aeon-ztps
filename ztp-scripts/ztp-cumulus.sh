@@ -5,21 +5,30 @@
 # LICENSE file at http://www.apstra.com/community/eula
 
 
-## trap and print what failed
 
+REMOTE_USERNAME="admin"
+REMOTE_PASSWD="admin"
+
+INSTALL_LICENSE_FILE="license"
+INSTALL_VRF_DEB="cl-mgmtvrf.deb"
+
+LOCK_FILE=/mnt/persist/aeon-ztp.lock
+
+# trap and print what failed
 function error () {
     echo -e "ERROR: Script failed at $BASH_COMMAND at line $BASH_LINENO." >&2
     exit 1
 }
 trap error ERR
 
-LOCK_FILE=/mnt/persist/aeon-ztp.lock
 
-
-SERVER_PORT="8080"
-SERVER=$(grep -m 1 dhcp-server /var/lib/dhcp/dhclient.eth0.leases | awk '{ print $3 }' | tr --delete ';')
-
-HTTP="http://${SERVER}:${SERVER_PORT}"
+provision_url=$(grep -m1 'cumulus-provision-url' /var/lib/dhcp/dhclient.eth0.leases | awk -F "/" '{print $3}')
+if [ -n "$provision_url" ]; then
+    HTTP="http://${provision_url}"
+else
+    echo "Missing cumulus-provision-url" >&2
+    exit 1
+fi
 
 echo ""
 echo "-------------------------------------"
@@ -27,24 +36,28 @@ echo "Aeon-ZTP auto-provision from: ${HTTP}"
 echo "-------------------------------------"
 echo ""
 
-function setup_user_cumulus(){
-    if [[ ! -e /etc/sudoers.d/cumulus ]]
+function create_remote_user(){
+    sudoer_file=/etc/sudoers.d/${REMOTE_USERNAME}
+
+    if [[ ! -e ${sudoer_file} ]]
     then
-        usermod -p $(echo $1 | openssl passwd -1 -stdin) cumulus
-        echo "cumulus ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/cumulus
+        cp -r /home/cumulus /home/${REMOTE_USERNAME}
+        useradd --shell /bin/bash ${REMOTE_USERNAME}
+        usermod -p $(echo ${REMOTE_PASSWD} | openssl passwd -1 -stdin) ${REMOTE_USERNAME}
+        echo "${REMOTE_USERNAME} ALL=(ALL) NOPASSWD:ALL" > ${sudoer_file}
     fi
 }
 
 function install_license(){
    cl_lic=/usr/cumulus/bin/cl-license
-   if [[ ! -x $cl_lic ]]; then
+   if [[ ! -x ${cl_lic} ]]; then
      return
    fi
 
-   lic=$($cl_lic)
+   lic=$(${cl_lic})
    if [[ $? -ne 0 ]]
    then
-      $cl_lic -i ${HTTP}/downloads/cumulus/license && service switchd restart
+      ${cl_lic} -i ${HTTP}/downloads/cumulus/${INSTALL_LICENSE_FILE} && service switchd restart
    fi
 }
 
@@ -55,7 +68,7 @@ function install_vrf(){
         return
     fi
 
-    wget -O cl-mgmtvrf.deb ${HTTP}/images/cumulus/cl-mgmtvrf.deb
+    wget -O cl-mgmtvrf.deb ${HTTP}/images/cumulus/${INSTALL_VRF_DEB}
     dpkg -i cl-mgmtvrf.deb
     /usr/sbin/cl-mgmtvrf --enable
     if [ -e /etc/cumulus/switchd.conf ]
@@ -66,16 +79,16 @@ function install_vrf(){
 }
 
 function kickstart_aeon_ztp(){
-    if [[ ! -e $LOCK_FILE ]]
+    if [[ ! -e ${LOCK_FILE} ]]
     then
         wget -O /dev/null ${HTTP}/api/register/cumulus
-        touch $LOCK_FILE
+        touch ${LOCK_FILE}
     else
-        rm $LOCK_FILE
+        rm ${LOCK_FILE}
     fi
 }
 
-setup_user_cumulus "admin"
+create_remote_user
 install_vrf
 install_license
 kickstart_aeon_ztp
@@ -84,4 +97,3 @@ kickstart_aeon_ztp
 
 ## exit cleanly, no reboot
 exit 0
-
