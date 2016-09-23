@@ -95,7 +95,7 @@ The WebGUI
 You can access the WebGUI here: :literal:`http://<yourztps>:8080`.  At present there is no login/authentication
 built into the WebGUI.  The following is a screen-shot of the "ZTP Status" dashboard page:
 
-.. image:: ../dashboard-devices.png
+.. image:: ../_static/dashboard-devices.png
 
 
 .. _rest_api:
@@ -107,7 +107,7 @@ REST/JSON API
 The REST/JSON API URL is: :literal:`http://<yourztps>:8080/api`.  At present there is no login/authentication built
 into the API.  The following is a screen-shot of displaying the JSON information about devices processed by Aeon-ZTPS:
 
-.. image:: ../api-devices.png
+.. image:: ../_static/api-devices.png
 
 There are a number of APIs available, which are fully described in a separate reference document.  Many of the APIs
 are used by the Aeon-ZTPS bootstrap scripts; ie. not something you, the User, would have interest in.  The following

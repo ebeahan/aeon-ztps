@@ -9,7 +9,6 @@ __pycache__/
 # Distribution / packaging
 .Python
 env/
-build/
 develop-eggs/
 dist/
 eggs/
@@ -90,5 +89,7 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# DB Files
 /*.db
 *.sqlite

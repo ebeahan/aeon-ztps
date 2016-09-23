@@ -10,11 +10,7 @@ perform the installation process on any other Ubuntu 16.04 LTS system.
 .. contents::
    :local:
 
-<<<<<<< HEAD
 .. |box| unicode:: ☐
-=======
-.. |box|  unicode:: ☐
->>>>>>> develop
 
 .. |sp| unicode:: U+00A0
 
@@ -73,11 +69,11 @@ this writing.
         5.0.24, or later 5.0.x — use "VBoxManage --version" to check.  Note: For those running Mac OSX El Capital and
         needing a VirtualBox update, you may need to disable Apple's
         System Integrity Protection, as described `here <http://www.macworld
-        .com/article/2986118/security/how-to-modify-system-integrity-protection-in-el-capitan.html>`_
+        .com/article/2986118/security/how-to-modify-system-integrity-protection-in-el-capitan.html>`__
 
     Ansible_ |br|
         version 2.0 or later   — use "ansible --version" to check.  Installation instructions are located `here
-        <http://docs.ansible.com/ansible/intro_installation.html#latest-releases-on-mac-osx>`_.
+        <http://docs.ansible.com/ansible/intro_installation.html#latest-releases-on-mac-osx>`__.
 
 
 Edit the :literal:`install/Vagrantfile` file to also assign the eth1 value as part of the Vagrant provision process.
