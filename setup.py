@@ -31,7 +31,7 @@ class Tox(TestCommand):
 
 setup(
     name="aeon-ztp",
-    version="0.2.1",
+    version="0.3.1",
     author="Jeremy Schulman",
     author_email="jeremy@apstra.com",
     description=("AEON ZTP Server"),
