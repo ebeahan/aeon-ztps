@@ -13,7 +13,7 @@ Aeon-ZTPS runs as an Ubuntu 16.04LTS server using the Flask framework and a simp
 provides both a REST/JSON API and a GUI.  The Aeon-ZTPS can optionally provide the DHCP service (included, but not
 enabled by default).
 
-The complete documentation for Aeon-ZTPS can be found at *(readthedocs links to be provided later).
+The complete documentation for Aeon-ZTPS can be found at [Read the Docs](https://apstra-inc-aeon-ztps.readthedocs-hosted.com/en/latest/).
 
 Questions? Comments? Please join us on *(system(s) to be named later)*
 
