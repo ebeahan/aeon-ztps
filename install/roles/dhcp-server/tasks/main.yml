@@ -10,7 +10,8 @@
 - name: install DHCP reset script
   copy: src=dhcpd-reset dest=/usr/local/bin mode=755
 
-- name: start DHCP service
+- name: enable / start DHCP service
   service: name=isc-dhcp-server enabled=yes state=started
+  when: DHCPS_enable == True
 
 
