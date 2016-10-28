@@ -56,18 +56,11 @@ fi
 
 ${CLI} "copy ${HTTP_API}/bootconf/eos running"
 
-# -------------------------------------------------------------------
-# kick-off the Aeon ZTP server bootstrap process.
-# MUST be done before updating the EOS configuration
-# -------------------------------------------------------------------
-
-wget -O /dev/null ${HTTP_API}/register/eos
-
 # ----------------------------------------------
 # update the EOS management configuration
 # ----------------------------------------------
 
-if [[ "$GATEWAY" != "" ]]; then
+if [[ -n "$GATEWAY" ]]; then
 ${CLI} "configure terminal
 ip route vrf management 0.0.0.0/0 $GATEWAY"
 fi
@@ -79,4 +72,9 @@ ip address $IP_ADDR"
 
 ${CLI} "copy run start"
 
+# -------------------------------------------------------------------
+# kick-off the Aeon ZTP server bootstrap process.
+# -------------------------------------------------------------------
+
+ip netns exec ns-management wget -O /dev/null ${HTTP_API}/register/eos
 exit 0
