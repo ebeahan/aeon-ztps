@@ -74,6 +74,7 @@ wget -O /dev/null ${HTTP_API}/register/eos
 
 if [[ -n "$GATEWAY" ]]; then
 ${CLI} "configure terminal
+no ip route 0/0
 ip route vrf management 0.0.0.0/0 $GATEWAY"
 fi
 
@@ -84,4 +85,4 @@ ip address $IP_ADDR"
 
 ${CLI} "copy run start"
 
-exit 0
+reboot
