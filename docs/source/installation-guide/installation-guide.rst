@@ -31,7 +31,7 @@ Install Setup Checklist
     :emphasis:`optional` |br|
     |box| |sp| |sp| :strong:`Enable DHCP Service` |br|
 
-        Edit the file :literal:`install/vars/host.yml` and change the :code:`Include_dhcp_server` variable to
+        Edit the file :literal:`install/vars/dhcp-server.yml` and change the :code:`DHCPS_enable` variable to
         :code:`yes`
 
     .. figure:: install-dhcp-yes.png
@@ -111,6 +111,13 @@ then do the following to install Aeon-ZTPS on that server:
     echo "192.168.59.265" > hosts
     ansible-playbook via-ansible.yml -i hosts -u admin -kK
 
+Enable DHCP Service
+-------------------
+If you installed Aeon-ZTPS with the DHCP server disabled you can later enable the service.  From the Aeon-ZTPS
+bash prompt you can run the following commands:
 
+.. code:: bash
 
+    sudo systemctl enable isc-dhcp-server
+    sudo service isc-dhcp-server start
 

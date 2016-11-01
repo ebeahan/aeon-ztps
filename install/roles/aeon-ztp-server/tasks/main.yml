@@ -17,6 +17,7 @@
     - vendor_images
     - downloads
     - packages
+    - docs
 
 - name: copy aeon-ztp source files over
   copy:
@@ -39,6 +40,7 @@
   with_items:
     - vendor_images
     - downloads
+    - docs
 
 - name: create aeonztp directories
   file: path={{ Install_dir }}/{{ item }} state=directory
@@ -85,6 +87,13 @@
 - name: TEMPORARY - Install aeon-venos from local package
   pip:
     name: "{{ Install_dir }}/packages/aeon-venos-0.2.0.tar.gz"
+
+# build the docs
+
+- name: Build docs using Sphinx
+  shell: make html
+  args:
+    chdir: "/opt/aeonztps/docs"
 
 - name: Remove aeon-ztp source directory
   file:

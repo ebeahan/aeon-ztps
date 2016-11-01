@@ -15,3 +15,4 @@ singledispatch==3.4.0.3
 Flask-Markdown==0.3
 Flask-SQLAlchemy==2.1
 flask-marshmallow==0.7.0
+Sphinx==1.4.6

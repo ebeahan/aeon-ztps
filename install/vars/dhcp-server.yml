@@ -1,5 +1,6 @@
-DHCP_server:
+DHCPS_enable: no
+
+DHCPS_config:
     interface: eth1
-    lease_from: 192.168.59.50
-    lease_to: 192.168.59.150
+    lease: [192.168.59.50, 192.168.59.150]
     nameserver: 192.168.59.254
