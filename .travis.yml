@@ -7,4 +7,6 @@ env:
   - TOXENV=py27
   - TOXENV=flake8
   - TOXENV=docs
-  - TOXENV=coverage_travis
+script:
+  - pytest --cov=aeon_ztp tests/
+  - coveralls
