@@ -1,12 +1,9 @@
 language: python
 install:
-  - pip install tox coveralls pytest==3.0.2
+  - pip install tox
 script:
   - tox
 env:
   - TOXENV=py27
   - TOXENV=flake8
   - TOXENV=docs
-script:
-  - pytest --cov=aeon_ztp tests/
-  - coveralls
