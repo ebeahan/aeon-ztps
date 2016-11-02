@@ -1,6 +1,6 @@
 language: python
 install:
-  - pip install tox coveralls pytest --upgrade
+  - pip install tox coveralls pytest==3.0.2
 script:
   - tox
 env:
