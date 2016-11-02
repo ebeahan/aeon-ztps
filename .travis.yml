@@ -1,12 +1,12 @@
 language: python
 install:
-  - pip install tox
+  - pip install tox coveralls pytest
 script:
   - tox
 env:
   - TOXENV=py27
   - TOXENV=flake8
   - TOXENV=docs
-  - TOXENV=coverage_travis
 after_success:
+  - pytest --cov=aeon_ztp tests/
   - coveralls
