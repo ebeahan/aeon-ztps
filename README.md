@@ -1,6 +1,6 @@
 Develop branch [![Build Status](https://travis-ci.com/Apstra/aeon-ztps.svg?token=fpLAfpq4bNerkaXTm7dF&branch=develop)](https://travis-ci.com/Apstra/aeon-ztps)
 [![Coverage Status](https://coveralls.io/repos/github/Apstra/aeon-ztps/badge.svg?branch=feature%2Funittests&t=aRSRcw)](https://coveralls.io/github/Apstra/aeon-ztps?branch=develop)
-[![Documentation Status](https://readthedocs.com/projects/apstra-inc-aeon-ztps/badge/?version=latest)](https://apstra-inc-aeon-ztps.readthedocs-hosted.com/en/latest/?badge=latest)
+[![Documentation Status](https://readthedocs.org/projects/aeon-ztps/badge/?version=latest)](http://aeon-ztps.readthedocs.io/en/latest/?badge=latest)
 
 
 # Aeon-ZTPS
