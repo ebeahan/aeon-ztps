@@ -1,6 +1,11 @@
-DHCPS_enable: no
+DHCPS_enable: False
 
-DHCPS_config:
-    interface: eth1
-    lease: [192.168.59.50, 192.168.59.150]
-    nameserver: 192.168.59.254
+# Uncomment and add values to override defaults defined in dhcp-server role
+# dhcp_cidr: dhcp_cidr
+# dhcp_subnet: "{{ ansible_eth1['ipv4']['network'] }}"
+# dhcp_netmask: "{{ ansible_eth1['ipv4']['netmask'] }}"
+# dhcp_gateway: "{{ interfaces['eth1']['gateway'] }}"
+# dhcp_address: "{{ ansible_eth1['ipv4']['address'] }}"
+# dhcp_lease_start: "{{ dhcp_cidr | ipaddr('10') | ipaddr('address')}}"
+# dhcp_lease_end: "{{ dhcp_cidr | ipaddr('-10') |ipaddr('address') }}"
+# dhcp_nameserver: "{{ ansible_dns['nameservers'][0] }}"

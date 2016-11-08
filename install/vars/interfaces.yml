@@ -1,4 +1,4 @@
-Interfaces:
+interfaces:
     eth0:
         dhcp: true
     eth1:

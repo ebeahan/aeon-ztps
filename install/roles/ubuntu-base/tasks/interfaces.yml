@@ -3,4 +3,4 @@
 
 - name: create interface cfg files
   template: src=iface.jinja2 dest=/etc/network/interfaces.d/{{ item.key }}.cfg
-  with_dict: "{{ Interfaces }}"
+  with_dict: "{{ interfaces }}"
