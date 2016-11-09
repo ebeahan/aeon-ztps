@@ -1,0 +1,44 @@
+{
+    "variables": {
+        "ssh_name": "kappataumu",
+        "ssh_pass": "kappataumu",
+        "hostname": "packer-test"
+    },
+
+    "builders": [{
+        "type": "virtualbox-iso",
+        "guest_os_type": "Ubuntu_64",
+
+        "vboxmanage": [
+            ["modifyvm", "{{.Name}}", "--vram", "32"]
+        ],
+
+        "disk_size" : 10000,
+
+        "iso_url": "http://releases.ubuntu.com/precise/ubuntu-12.04.5-server-amd64.iso",
+        "iso_checksum": "769474248a3897f4865817446f9a4a53",
+        "iso_checksum_type": "md5",
+
+        "http_directory" : "http_directory",
+        "http_port_min" : 9001,
+        "http_port_max" : 9001,
+
+        "ssh_username": "{{user `ssh_name`}}",
+        "ssh_password": "{{user `ssh_pass`}}",
+        "ssh_wait_timeout": "20m",
+
+        "shutdown_command": "echo {{user `ssh_pass`}} | sudo -S shutdown -P now",
+
+        "boot_command" : [
+            "<esc><esc><enter><wait>",
+            "/install/vmlinuz noapic ",
+            "preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg ",
+            "debian-installer=en_US auto locale=en_US kbd-chooser/method=us ",
+            "hostname={{user `hostname`}} ",
+            "fb=false debconf/frontend=noninteractive ",
+            "keyboard-configuration/modelcode=SKIP keyboard-configuration/layout=USA ",
+            "keyboard-configuration/variant=USA console-setup/ask_detect=false ",
+            "initrd=/install/initrd.gz -- <enter>"
+        ]
+    }]
+}
