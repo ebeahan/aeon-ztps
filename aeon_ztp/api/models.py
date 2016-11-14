@@ -25,4 +25,5 @@ class DeviceSchema(ma.ModelSchema):
     class Meta:
         model = Device
 
+
 device_schema = DeviceSchema()
