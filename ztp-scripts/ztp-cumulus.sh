@@ -112,7 +112,7 @@ EOF
        until ping -c1 $provision_ip &>/dev/null; do
            sleep 1
            let counter-=1
-           if [ $counter -eq 1 ]
+           if [ $counter -lt 1 ]
            then
                echo "Unable to ping $provision_ip"
                exit 1
