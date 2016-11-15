@@ -1,10 +1,10 @@
 ---
 silly_cidr: "{{ ansible_eth1['ipv4']['network'] }}/{{ ansible_eth1['ipv4']['netmask'] }}"
 dhcp_cidr: "{{ silly_cidr | ipaddr('net') }}"
-dhcp_subnet: "{{ ansible_eth1['ipv4']['network'] }}"
-dhcp_netmask: "{{ ansible_eth1['ipv4']['netmask'] }}"
+dhcp_subnet: "{{ dhcp_cidr | ipaddr('network') }}"
+dhcp_netmask: "{{ dhcp_cidr | ipaddr('netmask') }}"
 dhcp_gateway: "{{ interfaces['eth1']['gateway'] }}"
-dhcp_address: "{{ ansible_eth1['ipv4']['address'] }}"
+dhcp_address: "{{ dhcp_cidr | ipaddr('address') }}"
 dhcp_lease_start: "{{ dhcp_cidr | ipaddr('10') | ipaddr('address')}}"
 dhcp_lease_end: "{{ dhcp_cidr | ipaddr('-10') |ipaddr('address') }}"
 dhcp_nameserver: "{{ ansible_dns['nameservers'][0] }}"

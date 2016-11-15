@@ -5,3 +5,9 @@ interfaces:
         address: 192.168.59.254/24
         gateway: 192.168.59.3
         metric: 10
+
+packer_interfaces:
+    eth0:
+        address: 192.168.59.254/24
+        gateway: 192.168.59.3
+        metric: 10
