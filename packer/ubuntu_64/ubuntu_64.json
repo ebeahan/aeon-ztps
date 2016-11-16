@@ -5,31 +5,136 @@
     "hostname": "aeon-ztps",
     "home": "{{ env `HOME`}}"
   },
-
   "provisioners": [
+    {
+      "type": "shell",
+      "execute_command": "echo 'vagrant'|sudo -S sh '{{.Path}}'",
+      "override": {
+        "virtualbox-iso": {
+          "scripts": [
+            "scripts/base.sh",
+            "scripts/vagrant.sh",
+            "scripts/virtualbox.sh",
+            "scripts/cleanup.sh"
+          ]
+        },
+        "vmware-iso": {
+          "scripts": [
+            "scripts/base.sh",
+            "scripts/vagrant.sh",
+            "scripts/vmware.sh"
+          ]
+        }
+      }
+    },
     {
       "type": "ansible",
       "playbook_file": "../../install/via-ansible.yml",
-      "extra_arguments": [ "--extra-vars", "packer=True dhcp_cidr=192.168.59.254/24 dhcp_gateway=192.168.59.1" ]
+      "extra_arguments": [
+        "--extra-vars",
+        "packer=True dhcp_cidr=192.168.59.254/24 dhcp_gateway=192.168.59.1"
+      ]
+    },
+    {
+      "type": "ansible",
+      "playbook_file": "../../../aos-aeonztps-addon/install/via-ansible.yml"
+    },
+    {
+      "type": "shell",
+      "execute_command": "echo 'vagrant'|sudo -S sh '{{.Path}}'",
+      "scripts": [
+        "scripts/cleanup.sh",
+        "scripts/zerodisk.sh"
+      ]
     }
   ],
-
   "builders": [
     {
-    "type": "virtualbox-ovf",
-    "vm_name": "aeon-ztps",
-    "headless": true,
-    "vboxmanage": [
-      ["modifyvm", "{{.Name}}", "--nictype0", "virtio"],
-      ["modifyvm", "{{.Name}}", "--memory", "1024"]
-    ],
-
-    "source_path": "{{ user `home` }}/.vagrant.d/boxes/ubuntu-VAGRANTSLASH-trusty64/20161109.0.0/virtualbox/box.ovf",
-    "ssh_username": "{{user `ssh_name`}}",
-    "ssh_password": "{{user `ssh_pass`}}",
-    "ssh_wait_timeout": "20m",
-
-    "shutdown_command": "echo {{user `ssh_pass`}} | sudo -S shutdown -P now"
-  }
+      "type": "virtualbox-iso",
+      "vm_name": "aeon-ztp-ubuntu-14-04-x64-virtualbox.box",
+      "boot_command": [
+        "<esc><wait>",
+        "<esc><wait>",
+        "<enter><wait>",
+        "/install/vmlinuz<wait>",
+        " auto<wait>",
+        " console-setup/ask_detect=false<wait>",
+        " console-setup/layoutcode=us<wait>",
+        " console-setup/modelcode=pc105<wait>",
+        " debian-installer=en_US<wait>",
+        " fb=false<wait>",
+        " initrd=/install/initrd.gz<wait>",
+        " kbd-chooser/method=us<wait>",
+        " keyboard-configuration/layout=USA<wait>",
+        " keyboard-configuration/variant=USA<wait>",
+        " locale=en_US<wait>",
+        " netcfg/get_hostname=aeon-ztps<wait>",
+        " netcfg/get_domain=vagrantup.com<wait>",
+        " noapic<wait>",
+        " preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg<wait>",
+        " -- <wait>",
+        "<enter><wait>"
+      ],
+      "boot_wait": "10s",
+      "disk_size": 20000,
+      "guest_os_type": "Ubuntu_64",
+      "http_directory": "http",
+      "iso_checksum": "2ac1f3e0de626e54d05065d6f549fa3a",
+      "iso_checksum_type": "md5",
+      "iso_url": "http://releases.ubuntu.com/14.04/ubuntu-14.04.4-server-amd64.iso",
+      "ssh_username": "vagrant",
+      "ssh_password": "vagrant",
+      "ssh_port": 22,
+      "ssh_wait_timeout": "10000s",
+      "shutdown_command": "echo 'shutdown -P now' > /tmp/shutdown.sh; echo 'vagrant'|sudo -S sh '/tmp/shutdown.sh'",
+      "vboxmanage": [
+        [ "modifyvm", "{{.Name}}", "--memory", "1024" ],
+        [ "modifyvm", "{{.Name}}", "--cpus", "1" ]
+      ]
+    },
+    {
+      "type": "vmware-iso",
+      "vm_name": "aeon-ztp-ubuntu-14-04-x64-vmware.vmx",
+      "boot_command": [
+        "<esc><wait>",
+        "<esc><wait>",
+        "<enter><wait>",
+        "/install/vmlinuz<wait>",
+        " auto<wait>",
+        " console-setup/ask_detect=false<wait>",
+        " console-setup/layoutcode=us<wait>",
+        " console-setup/modelcode=pc105<wait>",
+        " debian-installer=en_US<wait>",
+        " fb=false<wait>",
+        " initrd=/install/initrd.gz<wait>",
+        " kbd-chooser/method=us<wait>",
+        " keyboard-configuration/layout=USA<wait>",
+        " keyboard-configuration/variant=USA<wait>",
+        " locale=en_US<wait>",
+        " netcfg/get_hostname=aeon-ztps<wait>",
+        " netcfg/get_domain=vagrantup.com<wait>",
+        " noapic<wait>",
+        " preseed/url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/preseed.cfg<wait>",
+        " -- <wait>",
+        "<enter><wait>"
+      ],
+      "boot_wait": "10s",
+      "disk_size": 20000,
+      "guest_os_type": "linux",
+      "http_directory": "http",
+      "iso_checksum": "2ac1f3e0de626e54d05065d6f549fa3a",
+      "iso_checksum_type": "md5",
+      "iso_url": "http://releases.ubuntu.com/14.04/ubuntu-14.04.4-server-amd64.iso",
+      "ssh_username": "vagrant",
+      "ssh_password": "vagrant",
+      "ssh_port": 22,
+      "ssh_wait_timeout": "10000s",
+      "shutdown_command": "echo 'shutdown -P now' > /tmp/shutdown.sh; echo 'vagrant'|sudo -S sh '/tmp/shutdown.sh'",
+      "vmx_data": {
+        "memsize": "1024",
+        "numvcpus": "1",
+        "cpuid.coresPerSocket": "1"
+      }
+    }
   ]
 }
