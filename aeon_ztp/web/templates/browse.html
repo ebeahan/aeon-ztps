@@ -35,7 +35,7 @@
     <table class="table table-hover">
     <tr><th>Filename</th><th>Mime type</th><th>Size</th><th>Modification time</th><th>Creation time</th><th>View</th><th>Download</th><th>Delete</th></tr>
   {% endif %}
-  <tr class="{{ loop.cycle('odd', 'even') }}"><td>{{file.name}}</td><td>{{file.mimetype}}<td>{{file.size|filesizeformat}}</td><td>{{file.mtime}}</td><td>{{file.ctime}}<td><a href="/view/{{ dirpath}}/{{file.name}}">view</a></td><td><a href="/download/{{dirpath}}/{{file.name}}">Download</a></td><td><a href="/delete/{{dirpath}}/{{file.name}}">Delete</a></td></tr>
+  <tr class="{{ loop.cycle('odd', 'even') }}"><td>{{file.name}}</td><td>{{file.mimetype}}<td>{{file.size|filesizeformat}}</td><td>{{file.mtime}}</td><td>{{file.ctime}}<td><a href="/view/{{ dirpath}}/{{file.name}}">view</a></td><td><a href="/{{dirpath}}/{{file.name}}">Download</a></td><td><a href="/delete/{{dirpath}}/{{file.name}}">Delete</a></td></tr>
   {% if loop.last %}
     </table>
   {% endif %}
