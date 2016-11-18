@@ -15,7 +15,7 @@ enabled by default).
 
 The complete documentation for Aeon-ZTPS can be found at [Read the Docs](http://aeon-ztps.readthedocs.io/en/latest/). You can also build the docs locally by running "python setup.py build_sphinx" in the project root directory. You can then access the docs by opening the file docs/_build/sphinx/html/index.html.
 
-Questions? Comments? Please join us on *(system(s) to be named later)*
+Questions? Comments? Please feel free to post on the github issues list.
 
 # Supported Systems
 The initial release of the Aeon-ZTP server supports the following NOS/hardware:

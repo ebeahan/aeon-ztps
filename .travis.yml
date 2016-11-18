@@ -1,6 +1,6 @@
 language: python
 install:
-  - pip install tox
+  - pip install tox coveralls pytest
 script:
   - tox
 env:
