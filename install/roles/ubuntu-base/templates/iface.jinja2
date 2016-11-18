@@ -12,5 +12,8 @@ iface {{ item.key }} inet static
 {% endif %}
 {% if item.value.metric is defined %}
     metric {{ item.value.metric }}
+{% if item.value.dns_nameservers is defined %}
+    dns-nameservers {{ item.value.dns_nameservers }}
+{% endif %}
 {% endif %}
 {% endif %}
