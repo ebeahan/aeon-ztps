@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+{% if aosetc_installed %}
+AOS ETC is installed
+<form action = "{{ url_for('web.aos_import') }}" method = "post">
+    AOS IP Address: <input type="text" name="ip_address"><br>
+    <p><input type = "submit" value = "Submit" /></p>
+</form>
+{% else %}
+AOS-ETC tools are not installed. These tools are not needed if you are not using Apstra AOS.
+{% endif %}
+{% endblock %}

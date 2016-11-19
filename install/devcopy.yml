@@ -1,0 +1,26 @@
+---
+- hosts: aeon-ztps
+  become: True
+
+  vars:
+    copy_files:
+      - api
+      - web
+      - ztp_celery.py
+      - plugins
+      - ztp_os_selector.py
+    services:
+      - uwsgi
+      - celeryd
+  tasks:
+    - name: Copy aeon_ztp files
+      copy:
+        src: "../aeon_ztp/{{ item }}"
+        dest: /usr/local/lib/python2.7/dist-packages/aeon_ztp/
+      with_items: "{{ copy_files }}"
+
+    - name: Restart web server
+      service:
+        name: "{{ item }}"
+        state: restarted
+      with_items: "{{ services }}"

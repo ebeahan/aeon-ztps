@@ -11,7 +11,7 @@ import requests
 
 from celery import Celery
 
-__all__ = ['ztp_bootstrapper']
+__all__ = ['ztp_bootstrapper', 'aos_import']
 
 celery_config = dict()
 celery_config['CELERY_BROKER_URL'] = 'amqp://'
@@ -165,3 +165,15 @@ def ztp_finalizer(os_name, target):
         target=target)
 
     return do_finalize(os_name=os_name, target=target, server=server, log=log)
+
+
+@celery.task
+def aos_import(ip_address):
+    print ip_address
+    try:
+        aos_import = subprocess.check_output(['aosetc-import', ip_address])
+        return aos_import
+    except subprocess.CalledProcessError as e:
+        return e.output
+    # for stdout_line in iter(aos_import.stdout.readline, ""):
+    #     yield stdout_line

@@ -12,6 +12,7 @@ import errno
 import os
 import pwd
 import re
+import subprocess
 
 import aeon_ztp
 import magic
@@ -26,7 +27,7 @@ from pygments.lexers.special import TextLexer
 from pygments.util import ClassNotFound
 from werkzeug.utils import secure_filename
 
-from aeon_ztp import ztp_os_selector
+from aeon_ztp import ztp_os_selector, ztp_celery
 from aeon_ztp.api import models
 from ztp_sudo import flush_dhcp
 
@@ -612,3 +613,24 @@ def firmware():
     for vendor in ztp_os_selector.vendor_list():
         os_list.append(ztp_os_selector.Vendor(vendor))
     return render_template('firmware.html', list=os_list)
+
+
+@web.route('/aos_import', methods=['GET', 'POST'])
+def aos_import():
+    """Allows end user to specify IP address of AOS server and import AOS run files.
+
+    """
+    if request.method == 'POST':
+        ip_address = request.form['ip_address']
+        ztp_celery.aos_import.delay(ip_address=ip_address)
+        flash('Importing AOS run files', 'success')
+        return redirect(url_for('web.aos_import'), code=302)
+    elif request.method == 'GET':
+        # Check if aosetc-import is installed
+        try:
+            subprocess.check_call(['stat', '/usr/local/bin/aosetc-import'])
+            aosetc_installed = True
+        except subprocess.CalledProcessError:
+            aosetc_installed = False
+
+    return render_template('aos_import.html', aosetc_installed=aosetc_installed)
