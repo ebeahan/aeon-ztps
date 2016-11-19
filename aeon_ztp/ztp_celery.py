@@ -167,11 +167,11 @@ def ztp_finalizer(os_name, target):
     return do_finalize(os_name=os_name, target=target, server=server, log=log)
 
 
-@celery.task
-def aos_import(ip_address):
-    print ip_address
+@celery.task(bind=True)
+def aos_import(self, ip_address):
     try:
         aos_import = subprocess.check_output(['aosetc-import', ip_address])
+        self.update_state(state='STARTED')
         return aos_import
     except subprocess.CalledProcessError as e:
         return e.output

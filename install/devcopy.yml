@@ -9,6 +9,9 @@
       - ztp_celery.py
       - plugins
       - ztp_os_selector.py
+      - __init__.py
+      - aeon_ztp_app.py
+      - config.py
     services:
       - uwsgi
       - celeryd

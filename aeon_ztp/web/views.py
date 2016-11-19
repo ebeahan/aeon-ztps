@@ -26,6 +26,9 @@ from pygments.lexers import get_lexer_for_filename
 from pygments.lexers.special import TextLexer
 from pygments.util import ClassNotFound
 from werkzeug.utils import secure_filename
+from flask_wtf import FlaskForm
+from wtforms import StringField, SubmitField
+from wtforms.validators import DataRequired, IPAddress
 
 from aeon_ztp import ztp_os_selector, ztp_celery
 from aeon_ztp.api import models
@@ -615,22 +618,29 @@ def firmware():
     return render_template('firmware.html', list=os_list)
 
 
+class IpForm(FlaskForm):
+    ip_addr = StringField('AOS IP Address', validators=[DataRequired(), IPAddress()])
+    submit = SubmitField('Import')
+
+
 @web.route('/aos_import', methods=['GET', 'POST'])
 def aos_import():
     """Allows end user to specify IP address of AOS server and import AOS run files.
 
     """
-    if request.method == 'POST':
-        ip_address = request.form['ip_address']
+    ip_address = None
+    form = IpForm()
+    # Only run this section if a valid IP address was posted via the import button
+    if form.validate_on_submit():
+        ip_address = form.ip_addr.data
+        form.ip_addr.data = ''
         ztp_celery.aos_import.delay(ip_address=ip_address)
-        flash('Importing AOS run files', 'success')
-        return redirect(url_for('web.aos_import'), code=302)
-    elif request.method == 'GET':
-        # Check if aosetc-import is installed
-        try:
-            subprocess.check_call(['stat', '/usr/local/bin/aosetc-import'])
-            aosetc_installed = True
-        except subprocess.CalledProcessError:
-            aosetc_installed = False
-
-    return render_template('aos_import.html', aosetc_installed=aosetc_installed)
+        flash('Importing AOS run files', 'info')
+        return redirect(url_for('web.aos_import'))
+    # Check if aosetc-import is installed
+    try:
+        subprocess.check_call(['stat', '/usr/local/bin/aosetc-import'])
+        aosetc_installed = True
+    except subprocess.CalledProcessError:
+        aosetc_installed = False
+    return render_template('aos_import.html', form=form, aosetc_installed=aosetc_installed)
