@@ -1,10 +1,24 @@
 {% extends "base.html" %}
 {% import "bootstrap/wtf.html" as wtf %}
 {% block content %}
-{% if aosetc_installed %}
-Import AOS run files by entering the IP address of the AOS server.
-{{  wtf.quick_form(form) }}
-{% else %}
-AOS-ETC tools are not installed. These tools are not needed if you are not using Apstra AOS.
-{% endif %}
+    {% if aosetc_installed %}
+        <div class="page-header">
+            <h1>AOS Import</h1>
+            {% if not aos_version %}
+                <h3>AOS Run Files Version: <span class="label label-warning">Not Imported</span></h3>
+            {% elif aos_version == 'Error' %}
+                <h3>AOS Run Files Version: <span class="label label-danger">Error</span></h3>
+            {% else %}
+                <h3>AOS Run Files Version: <span class="label label-success">{{ aos_version }}</span></h3>
+            {% endif %}
+        </div>
+        <p>
+            Import AOS run files by entering the IP address of the AOS server.
+        </p>
+        <div style="width: 25%">
+            {{ wtf.quick_form(form) }}
+        </div>
+    {% else %}
+        AOS-ETC tools are not installed. These tools are not needed if you are not using Apstra AOS.
+    {% endif %}
 {% endblock %}

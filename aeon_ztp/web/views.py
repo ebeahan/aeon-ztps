@@ -623,6 +623,22 @@ class IpForm(FlaskForm):
     submit = SubmitField('Import')
 
 
+def aos_run_ver():
+    aos_conf = '/opt/aeonztps/downloads/aos.conf'
+    if not os.path.isfile(aos_conf):
+        return None
+    import ConfigParser
+    config = ConfigParser.SafeConfigParser()
+    try:
+        config.read(aos_conf)
+        aos_ver = config.get('controller', 'aos_version')
+        if not aos_ver:
+            return 'Error'
+        return aos_ver
+    except ConfigParser.Error:
+        return 'Error'
+
+
 @web.route('/aos_import', methods=['GET', 'POST'])
 def aos_import():
     """Allows end user to specify IP address of AOS server and import AOS run files.
@@ -641,6 +657,8 @@ def aos_import():
     try:
         subprocess.check_call(['stat', '/usr/local/bin/aosetc-import'])
         aosetc_installed = True
+        aos_version = aos_run_ver()
     except subprocess.CalledProcessError:
         aosetc_installed = False
-    return render_template('aos_import.html', form=form, aosetc_installed=aosetc_installed)
+        aos_version = None
+    return render_template('aos_import.html', form=form, aosetc_installed=aosetc_installed, aos_version=aos_version)
