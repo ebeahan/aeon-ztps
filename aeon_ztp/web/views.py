@@ -624,14 +624,14 @@ class IpForm(FlaskForm):
 
 
 def aos_run_ver():
-    aos_conf = '/opt/aeonztps/downloads/aos.conf'
-    if not os.path.isfile(aos_conf):
+    aos_ini = '/opt/aosetc/aosetc.ini'
+    if not os.path.isfile(aos_ini):
         return None
     import ConfigParser
     config = ConfigParser.SafeConfigParser()
     try:
-        config.read(aos_conf)
-        aos_ver = config.get('controller', 'aos_version')
+        config.read(aos_ini)
+        aos_ver = config.get('aos-server', 'aos_version')
         if not aos_ver:
             return 'Error'
         return aos_ver
