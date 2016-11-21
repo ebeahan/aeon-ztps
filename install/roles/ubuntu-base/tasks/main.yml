@@ -5,7 +5,10 @@
   command: sed  -ie 's/^\(127.0[^ \t]*\)[ \t]*ubuntu$/\1\t{{ Hostname }}/g' /etc/hosts
   ignore_errors: true
 
+- name: Update apt
+  apt:
+    update_cache: yes
+
 - include: users.yml
-- include: apt_update.yml
 - include: software.yml
 - include: interfaces.yml

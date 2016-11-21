@@ -1,4 +1,3 @@
-# --------------------------------------------------------
 - include_vars: "{{ playbook_dir }}/vars/dhcp-server.yml"
 
 - name: install ISC DHCP server
@@ -14,4 +13,6 @@
   service: name=isc-dhcp-server enabled=yes state=started
   when: DHCPS_enable == True
 
-
+- name: Disable / stop DHCP service
+  service: name=isc-dhcp-server enabled=no state=stopped
+  when: DHCPS_enable == False
