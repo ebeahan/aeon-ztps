@@ -27,7 +27,7 @@ The initial release of the Aeon-ZTP server supports the following NOS/hardware:
 |Cumulus Linux   | All models       | [ONIE](http://onie.org/) and [Cumulus AutoProvisioning](https://docs.cumulusnetworks.com/display/DOCS/Zero+Touch+Provisioning+-+ZTP)        |
 
 # Installation
-If you are using VirtualBox, tou can build and install the Aeon-ZTP serverby invoking "vagrant up" from within the install directory after configuring the setup files.  For the complete details on the installation process, please <read the docs>
+If you are using VirtualBox, you can build and install the Aeon-ZTP server by invoking "vagrant up" from within the install directory after configuring the setup files.  For the complete details on the installation process, please refer to the [installation guide](https://aeon-ztps.readthedocs.io/en/latest/installation-guide/installation-guide.html).
 
 # Screenshots
 
