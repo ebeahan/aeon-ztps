@@ -13,7 +13,7 @@ Aeon-ZTPS runs as an Ubuntu 16.04LTS server using the Flask framework and a simp
 provides both a REST/JSON API and a GUI.  The Aeon-ZTPS can optionally provide the DHCP service (included, but not
 enabled by default).
 
-The complete documentation for Aeon-ZTPS can be found at [Read the Docs](https://apstra-inc-aeon-ztps.readthedocs-hosted.com/en/latest/). You can also build the docs locally by running "python setup.py build_sphinx" in the project root directory. You can then access the docs by opening the file docs/_build/sphinx/html/index.html.
+The complete documentation for Aeon-ZTPS can be found at [Read the Docs](http://aeon-ztps.readthedocs.io/en/latest/). You can also build the docs locally by running "python setup.py build_sphinx" in the project root directory. You can then access the docs by opening the file docs/_build/sphinx/html/index.html.
 
 Questions? Comments? Please feel free to post on the github issues list.
 
@@ -27,7 +27,7 @@ The initial release of the Aeon-ZTP server supports the following NOS/hardware:
 |Cumulus Linux   | All models       | [ONIE](http://onie.org/) and [Cumulus AutoProvisioning](https://docs.cumulusnetworks.com/display/DOCS/Zero+Touch+Provisioning+-+ZTP)        |
 
 # Installation
-If you are using VirtualBox, tou can build and install the Aeon-ZTP serverby invoking "vagrant up" from within the install directory after configuring the setup files.  For the complete details on the installation process, please <read the docs>
+If you are using VirtualBox, you can build and install the Aeon-ZTP server by invoking "vagrant up" from within the install directory after configuring the setup files.  For the complete details on the installation process, please refer to the [installation guide](https://aeon-ztps.readthedocs.io/en/latest/installation-guide/installation-guide.html).
 
 # Screenshots
 

@@ -1,12 +1,14 @@
 ---
 - hosts: all
   become: true
+  gather_facts: true
   vars:
     - TopDir: "{{ playbook_dir }}/.."
 
   vars_files:
     - vars/host.yml
     - vars/interfaces.yml
+    - vars/dhcp-server.yml
 
   roles:
     - ubuntu-base
@@ -21,3 +23,4 @@
       async: 1
       poll: 0
       ignore_errors: true
+      when: (packer is defined and not packer) or (packer is not defined)

@@ -7,6 +7,3 @@ env:
   - TOXENV=py27
   - TOXENV=flake8
   - TOXENV=docs
-after_success:
-  - pytest --cov=aeon_ztp tests/
-  - coveralls

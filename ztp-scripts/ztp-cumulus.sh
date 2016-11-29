@@ -42,6 +42,7 @@ function create_remote_user(){
     if [[ ! -e ${sudoer_file} ]]
     then
         cp -r /home/cumulus /home/${REMOTE_USERNAME}
+        chown -R ${REMOTE_USERNAME}.${REMOTE_USERNAME} /home/${REMOTE_USERNAME}
         useradd --shell /bin/bash ${REMOTE_USERNAME}
         usermod -p $(echo ${REMOTE_PASSWD} | openssl passwd -1 -stdin) ${REMOTE_USERNAME}
         echo "${REMOTE_USERNAME} ALL=(ALL) NOPASSWD:ALL" > ${sudoer_file}
@@ -61,7 +62,17 @@ function install_license(){
    fi
 }
 
-function install_vrf(){
+function is_vrf_aware(){
+    # Cumulus supports native VRF from version 3.x
+    local cumulus_version=$(cat /etc/lsb-release | grep DISTRIB_RELEASE | cut -d= -f2)
+    if [[ "${cumulus_version:0:1}" == "3" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+function install_vrf_deb(){
     check=$(dpkg -l | grep -i cl-mgmtvrf)
     if [[ $? -eq 0 ]]
     then
@@ -78,19 +89,34 @@ function install_vrf(){
     fi
 }
 
-function kickstart_aeon_ztp(){
-    if [[ ! -e ${LOCK_FILE} ]]
-    then
-        wget -O /dev/null ${HTTP}/api/register/cumulus
-        touch ${LOCK_FILE}
+function enable_mgmt_vrf(){
+    if is_vrf_aware; then
+            cat > /etc/network/interfaces << EOF
+auto mgmt
+iface mgmt
+    address 127.0.0.1/8
+    vrf-table auto
+    post-up sudo service aos start
+
+auto eth0
+iface eth0 inet dhcp
+    vrf mgmt
+EOF
+       ifreload -a
+       ifdown eth0
+       ifup eth0
     else
-        rm ${LOCK_FILE}
+       install_vrf_deb
     fi
 }
 
+function kickstart_aeon_ztp(){
+     wget -O /dev/null ${HTTP}/api/register/cumulus
+}
+
 create_remote_user
-install_vrf
-install_license
+enable_mgmt_vrf
+#install_license
 kickstart_aeon_ztp
 
 # CUMULUS-AUTOPROVISIONING
