@@ -62,6 +62,15 @@ function install_license(){
    fi
 }
 
+function is_cumulus_vx(){
+   local product=$(decode-syseeprom | grep "Product Name" | awk '{print $NF}')
+   if [[ "$product" == "VX" ]]; then
+      return 0
+   else
+      return 1
+   fi
+}
+
 function is_vrf_aware(){
     # Cumulus supports native VRF from version 3.x
     local cumulus_version=$(cat /etc/lsb-release | grep DISTRIB_RELEASE | cut -d= -f2)
@@ -115,11 +124,14 @@ function kickstart_aeon_ztp(){
 }
 
 create_remote_user
-enable_mgmt_vrf
-#install_license
 kickstart_aeon_ztp
+enable_mgmt_vrf
+
+if [[ ! is_cumulus_vx ]]; then
+   install_license
+fi
 
 # CUMULUS-AUTOPROVISIONING
 
-## exit cleanly, no reboot
+# exit cleanly, no reboot
 exit 0
