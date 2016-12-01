@@ -1,0 +1,12 @@
+---
+- hosts: all
+  become: true
+  connection: local
+
+  vars_files:
+    - vars/interfaces.yml
+    - vars/dhcp-server.yml
+
+  tasks:
+    - include_role: name=ubuntu-base tasks_from=setup-networking.yml
+    - include_role: name=dhcp-server

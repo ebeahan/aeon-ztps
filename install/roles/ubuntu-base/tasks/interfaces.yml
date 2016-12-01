@@ -12,12 +12,6 @@
 - name: install /etc/network/interfaces
   copy: src=interfaces dest=/etc/network/interfaces
 
-- name: create vagrant interface cfg files
+- name: create interface cfg files
   template: src=iface.jinja2 dest=/etc/network/interfaces.d/{{ item.key }}.cfg
   with_dict: "{{ interfaces }}"
-  when: packer is not defined or not packer
-
-- name: create packer interface cfg files
-  template: src=iface.jinja2 dest=/etc/network/interfaces.d/{{ item.key }}.cfg
-  with_dict: "{{ packer_interfaces }}"
-  when: packer is defined and packer

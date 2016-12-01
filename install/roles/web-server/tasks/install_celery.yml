@@ -6,9 +6,6 @@
   template: src=celeryd.conf dest=/etc/default/celeryd mode=644
             owner=root group=root
 
-- name: Install celery python package
-  pip: name=celery
-
 - name: Enable the celery service
   service: name=celeryd enabled=yes state=started
   ignore_errors: true

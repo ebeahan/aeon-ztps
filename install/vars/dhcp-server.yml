@@ -1,12 +1,23 @@
 DHCPS_enable: False
 
-# Uncomment and add values to override defaults defined in dhcp-server role
+# -----------------------------------------------------------------------------
+# anything below this line is ignored when the dhcp server install is disabled
+# -----------------------------------------------------------------------------
 
-# dhcp_cidr: dhcp_cidr
-# dhcp_subnet: "{{ dhcp_cidr | ipaddr('network') }}"
-# dhcp_netmask: "{{ dhcp_cidr | ipaddr('netmask') }}"
-# dhcp_gateway: "{{ interfaces['eth1']['gateway'] }}"
-# dhcp_address: "{{ dhcp_cidr | ipaddr('address') }}"
-# dhcp_lease_start: "{{ dhcp_cidr | ipaddr('10') | ipaddr('address')}}"
-# dhcp_lease_end: "{{ dhcp_cidr | ipaddr('-10') |ipaddr('address') }}"
-# dhcp_nameserver: "{{ ansible_dns['nameservers'][0] }}"
+DHCPS_tftpserver: "{{ interfaces['eth0'].address | ipaddr('address') }}"
+DHCPS_nameserver: "{{ interfaces['eth0'].address | ipaddr('address') }}"
+
+DHCPS_scopes:
+
+    -   network: "{{ interfaces['eth0'].address | ipaddr('network') }}"
+        netmask: "{{ interfaces['eth0'].address | ipaddr('netmask') }}"
+        gateway: "{{ interfaces['eth0'].gateway }}"
+        range_start_offset: 10
+        range_end_offset: -10
+
+    -   network: 192.168.60.0
+        netmask: 255.255.255.0
+        gateway: 192.168.60.2
+        range_start_offset: 10
+        range_end_offset: -10
+
