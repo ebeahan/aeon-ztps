@@ -2,9 +2,11 @@ interfaces:
     eth0:
         dhcp: true
 
-#interfaces:
-#    eth0:
-#        address: 192.168.59.254/24
-#        gateway: 192.168.59.2
-#        metric: 10
-#        dns_nameservers: 8.8.8.8
+vagrant_interfaces:
+    eth0:
+        dhcp: true
+    eth1:
+        address: 192.168.59.254/24
+        gateway: 192.168.59.2
+        metric: 10
+        dns_nameservers: 8.8.8.8

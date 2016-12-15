@@ -15,3 +15,9 @@
 - name: create interface cfg files
   template: src=iface.jinja2 dest=/etc/network/interfaces.d/{{ item.key }}.cfg
   with_dict: "{{ interfaces }}"
+  when: not vagrant
+
+- name: create Vagrant interface cfg files
+  template: src=iface.jinja2 dest=/etc/network/interfaces.d/{{ item.key }}.cfg
+  with_dict: "{{ vagrant_interfaces }}"
+  when: vagrant

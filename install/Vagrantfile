@@ -1,8 +1,12 @@
+varsInterfaces = YAML.load_file("vars/interfaces.yml")
+ipAddr = varsInterfaces['vagrant_interfaces']['eth1']['address'].split('/')[0]
 Vagrant.configure(2) do |config|
   config.vm.box = "ubuntu/xenial64"
   config.vm.hostname = 'aeon-ztps'
+  config.vm.network "private_network", ip: ipAddr, nic_type: "virtio"
 
   config.vm.provider "virtualbox" do |vb|
+    vb.customize ["modifyvm", :id, "--nictype1", "virtio"]
     vb.name = 'aeon-ztps'
     vb.memory = '1024'
   end
