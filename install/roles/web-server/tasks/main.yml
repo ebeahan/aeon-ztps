@@ -7,6 +7,6 @@
     - uwsgi
     - uwsgi-plugin-python
 
-- include: install_nginx.yml
-- include: install_uwsgi.yml
 - include: install_celery.yml
+- include: install_uwsgi.yml
+- include: install_nginx.yml

@@ -86,7 +86,7 @@
 
 - name: TEMPORARY - Install aeon-venos from local package
   pip:
-    name: "{{ Install_dir }}/packages/aeon-venos-0.2.0.tar.gz"
+    name: "{{ Install_dir }}/packages/aeon-venos-0.3.0.tar.gz"
 
 # build the docs
 
@@ -102,3 +102,19 @@
 
 - name: sudoers for aeon ZTP helper scripts
   copy: src=aeon-ztp.conf dest=/etc/sudoers.d mode=600
+
+# make a copy of this install package so we can use it again
+# on the ztp-server itself.  for the purpose of (re)-building dhcpd, for example.
+
+- name: copy installer files onto aeon-ztps
+  synchronize:
+    src: "{{ playbook_dir}}"
+    dest: /usr/local/lib/aeon-ztps-installer
+    rsync_opts:
+      - '--exclude ".*"'
+
+- name: install ansilbe
+  pip: name=ansible
+
+- name: install sshpass for local use of ansible
+  apt: name=sshpass state=present

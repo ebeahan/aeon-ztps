@@ -7,4 +7,16 @@
             owner=root group=root
 
 - name: Enable the celery service
-  service: name=celeryd enabled=yes state=started
+  service:
+    name: celeryd
+    state: started
+    enabled: True
+  when: not (ansible_distribution == "Ubuntu" and ansible_distribution_major_version >= "16")
+
+- name: Enable the Celery service using systemd
+  systemd:
+    name: celeryd
+    state: started
+    enabled: True
+    daemon_reload: True
+  when: ansible_distribution == "Ubuntu" and ansible_distribution_major_version >= "16"

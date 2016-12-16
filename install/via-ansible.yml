@@ -1,7 +1,8 @@
 ---
 - hosts: all
   become: true
-  gather_facts: true
+  gather_facts: false
+
   vars:
     - TopDir: "{{ playbook_dir }}/.."
 
@@ -16,6 +17,12 @@
     - tftp-server
     - web-server
     - dhcp-server
+
+  # Ansible requires python2, which is not installed by default on Ubuntu Xenial
+  pre_tasks:
+    - raw: sudo apt-get -y install python-simplejson
+    # action: setup will gather facts after python2 has been installed
+    - action: setup
 
   tasks:
     - name: Reboot

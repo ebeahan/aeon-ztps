@@ -27,9 +27,9 @@
   {% if device.state == 'ERROR' %}
   {% set class = 'danger' %}
   {% elif device.state == 'REGISTERED' %}
-  {% set class = 'active' %}
+  {% set class = 'info' %}
   {% elif device.state == 'FINALLY' %}
-  {% set class = 'active' %}
+  {% set class = 'info' %}
   {% elif device.state == 'START' %}
   {% set class = 'info' %}
   {% elif device.state == 'AWAIT-ONLINE' %}
