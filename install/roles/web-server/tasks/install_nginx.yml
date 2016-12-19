@@ -6,5 +6,10 @@
   copy: src=nginx.aeon-ztp.ini dest=/etc/nginx/sites-enabled/aeon-ztp.ini
         mode=644 owner=root group=root
 
+- name: Remove default NGINX site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+
 - name: Enable the Nginx service
   service: name=nginx enabled=yes state=started
