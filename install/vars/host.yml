@@ -2,3 +2,5 @@ Hostname: aeon-ztps
 Install_dir: /opt/aeonztps
 Aeon_user: aeon
 Aeon_group: users
+vagrant: False
+packer: False
