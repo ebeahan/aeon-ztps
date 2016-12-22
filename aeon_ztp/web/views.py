@@ -382,10 +382,10 @@ def dhcp_flush():
     try:
         flush_dhcp()
         flash('Successfully Flushed DHCP leases', 'success')
-        return redirect(url_for('dhcp_leases'), code=302)
+        return redirect(url_for('web.dhcp_leases'), code=302)
     except OSError as e:
         flash('Could not flush DHCP {}'.format(e), 'danger')
-        return redirect(url_for('dhcp_leases'), code=302)
+        return redirect(url_for('web.dhcp_leases'), code=302)
 
 
 @web.route('/dhcp')
