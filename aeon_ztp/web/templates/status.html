@@ -26,16 +26,10 @@
   {# TODO: jinja context processor #}
   {% if device.state == 'ERROR' %}
   {% set class = 'danger' %}
-  {% elif device.state == 'REGISTERED' %}
-  {% set class = 'info' %}
-  {% elif device.state == 'FINALLY' %}
-  {% set class = 'info' %}
-  {% elif device.state == 'START' %}
-  {% set class = 'info' %}
-  {% elif device.state == 'AWAIT-ONLINE' %}
-  {% set class = 'info' %}
   {% elif device.state == 'DONE' %}
   {% set class = 'success' %}
+  {% else %}
+  {% set class = 'info' %}
   {% endif %}
     <tr class="{{class}}">
       <td>{{device.ip_addr}}</td>

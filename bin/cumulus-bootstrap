@@ -299,28 +299,33 @@ def onie_install(dev, image_name):
     g_log.info(msg)
     try:
         ssh = pxssh.pxssh(options={"StrictHostKeyChecking": "no", "UserKnownHostsFile": "/dev/null"})
-        #TODO: Figure out why you're getting a "Could not establish connection to host" error here.
-        ssh.login(g_cli_args.server, 'root', auto_prompt_reset=False)
+        ssh.login(dev.target, 'root', auto_prompt_reset=False)
         ssh.PROMPT = 'ONIE:~ #'
         ssh.sendline('\n')
         ssh.prompt()
 
         # Start installation process
         ssh.sendline('onie-nos-install http://{server}/images/{os_name}/{image_name}'
-                     .format(server=dev.target, os_name=_OS_NAME, image_name=image_name))
+                     .format(server=g_cli_args.server, os_name=_OS_NAME, image_name=image_name))
 
         # 'installer' means that the download has started
         ssh.expect('installer', timeout=15)
 
         # Indicates that the image has been downloaded and verified
-        ssh.expect('Please reboot to start installing OS.', timeout=30)
+        ssh.expect('Please reboot to start installing OS.', timeout=180)
+
+        ssh.prompt()
+        ssh.sendline('reboot')
+        time.sleep(2)
+        ssh.close()
 
         msg = 'Firmware download completed and verified, reboot initiated.'
         post_device_status(dev=dev, state='OS-INSTALL', message=msg)
         return True
 
     except pxssh.ExceptionPxssh as e:
-        exit_results(target=g_cli_args.target, results=dict(ok=False, error_type='os-upgrade', message=str(e)))
+        g_log.info(str(e))
+        exit_results(dev=dev, target=g_cli_args.target, results=dict(ok=False, error_type='install', message=e))
 
 
 def install_os(dev, image_name):
@@ -359,9 +364,16 @@ def install_os(dev, image_name):
         dev.api.execute(['sudo reboot'])
         time.sleep(60)
 
+        # Boot into ONIE rescue mode
         wait_for_onie_rescue(countdown=300, poll_delay=10, user='root')
 
+        # Download and verify OS
         onie_install(dev, image_name)
+
+        # Wait for onie-rescue shell to terminate
+        time.sleep(60)
+
+        # Wait for actual install to occur. This takes up to 30 min.
         wait_for_device(countdown=1800, poll_delay=30)
 
 

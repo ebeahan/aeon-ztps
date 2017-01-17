@@ -168,14 +168,13 @@ def _create_device():
 
     try:
         rec = find_device(db, table, device_data).one()
-        rec.state = 'ERROR'
         rec.updated_at = time_now()
         rec.message = 'device with os_name, ip_addr already exists'
         db.commit()
 
         return jsonify(
-            ok=False, message=rec.message,
-            rqst_data=device_data), 400
+            ok=True, message='device already exists',
+            data_data=device_data)
 
     except NoResultFound:
         pass
