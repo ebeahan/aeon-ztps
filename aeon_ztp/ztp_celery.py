@@ -39,6 +39,16 @@ def post_device_status(server, target, os_name, message=None, state=None):
             state=state, message=message))
 
 
+def get_device_state(server, target):
+    r = requests.get(url='http://{server}/api/devices?ip_addr={ip_addr}'
+                     .format(server=server, ip_addr=target))
+    try:
+        state = r.json()['items'][0]['state']
+    except KeyError:
+        state = None
+    return state
+
+
 def setup_logging(logname, logfile, target):
     log = logging.getLogger(name=logname)
     log.setLevel(logging.INFO)
@@ -66,15 +76,15 @@ def do_finalize(server, os_name, target, log):
         AEON_TARGET=target,
         AEON_SERVER=server))
 
-    message = "executing 'finally' script: {cmd}".format(cmd=cmd)
+    child = subprocess.Popen(
+        cmd, shell=True, env=this_env,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    message = "executing 'finally' script:[pid={pid}] {cmd}".format(pid=child.pid, cmd=cmd)
     log.info(message)
     post_device_status(server=server,
                        os_name=os_name, target=target,
                        state='FINALLY', message=message)
-
-    child = subprocess.Popen(
-        cmd, shell=True, env=this_env,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     _stdout, _stderr = child.communicate()
     rc = child.returncode
@@ -128,6 +138,12 @@ def ztp_bootstrapper(os_name, target):
     log = setup_logging(
         logname='aeon-bootstrapper', logfile=_AEON_LOGFILE,
         target=target)
+
+    state = get_device_state(server, target)
+    if state:
+        log.warning('Device at {} has already registered. This is likely a duplicate bootstrap run and will '\
+                    'be terminated.'.format(target))
+        return
 
     got = requests.post(
         url='http://%s/api/devices' % server,

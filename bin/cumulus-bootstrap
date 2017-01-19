@@ -152,7 +152,7 @@ def exit_results(results, exit_error=None, dev=None, target=None):
         sys.exit(exit_error or 1)
 
 
-def wait_for_device(countdown, poll_delay):
+def wait_for_device(countdown, poll_delay, msg=None):
     target = g_cli_args.target
     user = g_cli_args.user or os.getenv(g_cli_args.env_user)
     passwd = os.getenv(g_cli_args.env_passwd)
@@ -179,9 +179,9 @@ def wait_for_device(countdown, poll_delay):
     # we'll use the probe error to detect if it is or not
 
     while not dev:
-        msg = 'OS installation in progress. Timeout remaining: {} seconds'.format(countdown)
-        post_device_status(target=target, state='AWAIT-ONLINE', message=msg)
-        g_log.info(msg)
+        new_msg = msg or 'OS installation in progress. Timeout remaining: {} seconds'.format(countdown)
+        post_device_status(target=target, state='AWAIT-ONLINE', message=new_msg)
+        g_log.info(new_msg)
 
         try:
             dev = Device(target, user=user, passwd=passwd,
@@ -320,6 +320,7 @@ def onie_install(dev, image_name):
         ssh.close()
 
         msg = 'Firmware download completed and verified, reboot initiated.'
+        g_log.info(msg)
         post_device_status(dev=dev, state='OS-INSTALL', message=msg)
         return True
 
@@ -424,7 +425,7 @@ def main():
         message='bootstrap started, waiting for device access')
 
     time.sleep(g_cli_args.init_delay)
-    dev = wait_for_device(countdown=g_cli_args.reload_delay, poll_delay=10)
+    dev = wait_for_device(countdown=g_cli_args.reload_delay, poll_delay=10, msg='Waiting for device access')
 
     g_log.info("proceeding with bootstrap")
 
