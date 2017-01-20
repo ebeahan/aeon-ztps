@@ -7,16 +7,12 @@ import argparse
 import subprocess
 import logging
 import time
-import socket
 import requests
-import yaml
 import semver
 from pexpect import pxssh
 from pexpect.pxssh import ExceptionPxssh
 
 from aeon.cumulus.device import Device
-from aeon.exceptions import ProbeError, LoginNotReadyError, UnauthorizedError
-from aeon.exceptions import ConfigError, CommandError
 from paramiko import AuthenticationException
 from paramiko.ssh_exception import NoValidConnectionsError
 
@@ -224,7 +220,7 @@ def wait_for_onie_rescue(countdown, poll_delay, user='root'):
     target = g_cli_args.target
     while countdown >= 0:
         try:
-            msg = 'OS installation in progress. Waiting for boot to ONIE rescue mode. Timeout remaining: {} seconds'.format(countdown)
+            msg = 'Cumulus installation in progress. Waiting for boot to ONIE rescue mode. Timeout remaining: {} seconds'.format(countdown)
             post_device_status(target=target, state='AWAIT-ONLINE', message=msg)
             g_log.info(msg)
             ssh = pxssh.pxssh(options={"StrictHostKeyChecking": "no", "UserKnownHostsFile": "/dev/null"})
@@ -294,7 +290,7 @@ def onie_install(dev, image_name):
         image_name (str): Name of image to download
     """
 
-    msg = 'OS download and verification in progress.'
+    msg = 'Cumulus download and verification in progress.'
     post_device_status(dev=dev, state='ONIE-RESCUE', message=msg)
     g_log.info(msg)
     try:
@@ -319,7 +315,7 @@ def onie_install(dev, image_name):
         time.sleep(2)
         ssh.close()
 
-        msg = 'Firmware download completed and verified, reboot initiated.'
+        msg = 'Cumulus download completed and verified, reboot initiated.'
         g_log.info(msg)
         post_device_status(dev=dev, state='OS-INSTALL', message=msg)
         return True
@@ -340,7 +336,7 @@ def install_os(dev, image_name):
             ok=False, error_type='install',
             message=errmsg))
 
-    msg = 'installing OS image=[%s] ... please be patient, this can take up to 30 min.' % image_name
+    msg = 'Installing Cumulus image=[%s] ... this can take up to 30 min.' % image_name
     g_log.info(msg)
     post_device_status(dev=dev, state='OS-INSTALL', message=msg)
 

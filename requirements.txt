@@ -18,3 +18,4 @@ flask-marshmallow==0.7.0
 Sphinx==1.4.6
 semver==2.7.3
 pexpect==4.0.1
+paramiko==1.17.2
