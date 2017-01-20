@@ -141,7 +141,7 @@ def ztp_bootstrapper(os_name, target):
 
     state = get_device_state(server, target)
     if state:
-        log.warning('Device at {} has already registered. This is likely a duplicate bootstrap run and will '\
+        log.warning('Device at {} has already registered. This is likely a duplicate bootstrap run and will '
                     'be terminated.'.format(target))
         return
 
