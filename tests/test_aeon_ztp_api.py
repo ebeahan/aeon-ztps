@@ -155,10 +155,11 @@ def test_create_device_with_existing_device(client, device):
     rv = client.post('/api/devices',
                      data=json.dumps(device_info),
                      content_type='application/json')
-    assert rv.status_code == 400
+    assert rv.status_code == 200
     rvd = json.loads(rv.data)
-    assert rvd['message'] == 'device with os_name, ip_addr already exists'
-    assert rvd['rqst_data']['ip_addr'] == device['ip_addr']
+    assert rvd['message'] == 'device already exists'
+    assert rvd['ok']
+    assert rvd['data'] == device_info
 
 
 def test_create_device_with_bad_data(client):

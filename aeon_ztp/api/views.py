@@ -174,7 +174,7 @@ def _create_device():
 
         return jsonify(
             ok=True, message='device already exists',
-            data_data=device_data)
+            data=device_data)
 
     except NoResultFound:
         pass
