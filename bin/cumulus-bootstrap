@@ -10,6 +10,7 @@ import time
 import requests
 import semver
 from pexpect import pxssh
+from pexpect.exceptions import EOF
 from pexpect.pxssh import ExceptionPxssh
 
 from aeon.cumulus.device import Device
@@ -225,13 +226,14 @@ def wait_for_onie_rescue(countdown, poll_delay, user='root'):
             g_log.info(msg)
             ssh = pxssh.pxssh(options={"StrictHostKeyChecking": "no", "UserKnownHostsFile": "/dev/null"})
             ssh.login(target, user, auto_prompt_reset=False)
-            ssh.PROMPT = 'ONIE:~ #'
+            ssh.PROMPT = 'ONIE:.*#'
             ssh.sendline('\n')
             ssh.prompt()
 
             return True
-        except ExceptionPxssh as e:
-            if str(e) == 'Could not establish connection to host':
+        except (ExceptionPxssh, EOF) as e:
+            if (str(e) == 'Could not establish connection to host') or isinstance(e, EOF):
+                ssh.close()
                 countdown -= poll_delay
                 time.sleep(poll_delay)
             else:
@@ -296,7 +298,7 @@ def onie_install(dev, image_name):
     try:
         ssh = pxssh.pxssh(options={"StrictHostKeyChecking": "no", "UserKnownHostsFile": "/dev/null"})
         ssh.login(dev.target, 'root', auto_prompt_reset=False)
-        ssh.PROMPT = 'ONIE:~ #'
+        ssh.PROMPT = 'ONIE:.*#'
         ssh.sendline('\n')
         ssh.prompt()
 
