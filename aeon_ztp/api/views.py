@@ -162,8 +162,7 @@ def _create_device():
             rqst_data=device_data), 400
 
     # ----------------------------------------------------------
-    # check to see if the device already exists, and if it does,
-    # then reject the request
+    # check to see if the device already exists
     # ----------------------------------------------------------
 
     try:
