@@ -22,7 +22,7 @@ function error () {
 trap error ERR
 
 
-provision_url=$(grep -m1 'cumulus-provision-url' /var/lib/dhcp/dhclient.eth0.leases | awk -F "/" '{print $3}')
+provision_url=$(cat /var/lib/dhcp/dhclient.eth0.leases | grep 'cumulus-provision-url'| tail -1 | awk -F "/" '{print $3}')
 if [ -n "$provision_url" ]; then
     HTTP="http://${provision_url}"
 else

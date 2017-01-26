@@ -162,20 +162,18 @@ def _create_device():
             rqst_data=device_data), 400
 
     # ----------------------------------------------------------
-    # check to see if the device already exists, and if it does,
-    # then reject the request
+    # check to see if the device already exists
     # ----------------------------------------------------------
 
     try:
         rec = find_device(db, table, device_data).one()
-        rec.state = 'ERROR'
         rec.updated_at = time_now()
         rec.message = 'device with os_name, ip_addr already exists'
         db.commit()
 
         return jsonify(
-            ok=False, message=rec.message,
-            rqst_data=device_data), 400
+            ok=True, message='device already exists',
+            data=device_data)
 
     except NoResultFound:
         pass
