@@ -259,10 +259,9 @@ def get_required_os(dev):
     profile_dir = os.path.join(g_cli_args.topdir, 'etc', 'profiles', 'default', _OS_NAME)
     conf_fpath = os.path.join(profile_dir, 'os-selector.cfg')
 
-    cmd = "{topdir}/bin/aztp-os-selector -m '{hw_model}' -o '{os_ver}' -c {config}".format(
+    cmd = "{topdir}/bin/aztp-os-selector -j '{dev_json}' -c {config}".format(
         topdir=g_cli_args.topdir,
-        hw_model=dev.facts['hw_model'],
-        os_ver=dev.facts['os_version'],
+        dev_json=json.dumps(dev.facts),
         config=conf_fpath)
 
     g_log.info('os-select: [%s]' % cmd)

@@ -7,7 +7,7 @@ import yaml
 import re
 import operator
 from collections import namedtuple
-from functools import partial
+from yaml.scanner import ScannerError
 
 _PROGNAME = 'aztp-os-selector'
 
@@ -45,12 +45,9 @@ def cli_parse(cmdargs=None):
         default='os-selector.cfg')
 
     psr.add_argument(
-        '-o', '--os_ver', required=True,
-        help='OS version string')
-
-    psr.add_argument(
-        '-m', '--hw_model', required=True,
-        help='hardware model string')
+        '-j', '--json', required=True,
+        help='Device data in JSON format'
+    )
 
     # any error with args parsing will raise an exception;
     # this will be caught in the calling environment and
@@ -64,30 +61,45 @@ def cli_parse(cmdargs=None):
 # #####
 # ##### -----------------------------------------------------------------------
 
+
 def exit_results(results, exit_error=None):
     json.dump(results, fp=sys.stdout)
     sys.exit(0 if results['ok'] is True else exit_error or 1)
 
+
 def load_cfg(filepath):
     try:
         return yaml.safe_load(open(filepath))
-    except:
-        exit_results({
-            'ok': False,
-            'error_type': 'args',
-            'error_message': 'Unable to load file: %s' % filepath
-        })
+    except (IOError, ScannerError) as e:
+        if isinstance(e, IOError):
+            exit_results({
+                'ok': False,
+                'error_type': 'args',
+                'error_message': 'Unable to load file: %s' % filepath
+            })
+        else:
+            exit_results({
+                'ok': False,
+                'error_type': 'args',
+                'error_message': 'YAML syntax error in file: {filepath}, {e}'.format(filepath=filepath, e=e)
+            })
 
 
-def match_hw_model(args, cfg_data):
+def match_hw_model(dev_data, cfg_data):
     # find entry matching the hw_model
     item_match = namedtuple('item_match', ['hw_match', 'data'])
 
-    matches = filter(
-        None,
-        [re.match(pattern=regex, string=args.hw_model,
-                  flags=re.IGNORECASE)
-            for regex in cfg_data.keys()])
+    matches = []
+
+    for group in cfg_data.iteritems():
+        if group[0] != 'default':
+            for fact_key, fact_value in group[1]['matches'].iteritems():
+                if dev_data[fact_key] not in str(fact_value):
+                    # Stop checking this device group if any of the matches don't match
+                    break
+            else:
+                # If all matches in match group match, return item_match
+                matches.append(group[0])
 
     # validate on the number of matches found
 
@@ -103,17 +115,17 @@ def match_hw_model(args, cfg_data):
             .format([m.re.pattern for m in matches])
         )
 
-    pattern = matches[0].re.pattern
-    return item_match(pattern, cfg_data[pattern])
+    return item_match(matches[0], cfg_data[matches[0]])
 
 
-def match_os_version(args, hw_match):
+def match_os_version(dev_data, hw_match):
     """
     Examines the matched hw_model entry and compares
     the expected vs. actual OS versions.  If the actual OS
     version does match the Users intent, then return the
     image name for the system to load.  Otherwise return None.
     """
+    os_ver = dev_data['os_version'].lower()
     _keys = ['exact_match', 'regex_match']
     if not any(k in hw_match for k in _keys):
         raise CfgError(
@@ -125,7 +137,7 @@ def match_os_version(args, hw_match):
 
     match = hw_match.get('regex_match')
     if match:
-        found = re.match(pattern=match, string=args.os_ver,
+        found = re.match(pattern=match, string=os_ver,
                          flags=re.IGNORECASE)
         return False if found else hw_match['image']
 
@@ -135,7 +147,6 @@ def match_os_version(args, hw_match):
 
     exact = hw_match.get('exact_match')
     exact = exact if isinstance(exact, list) else [exact]
-    os_ver = args.os_ver.lower()
     found = any(operator.eq(os_ver, this.lower()) for this in exact)
     return False if found else hw_match['image']
 
@@ -145,8 +156,16 @@ def main():
 
         cli_args = cli_parse()
         cfg_data = load_cfg(cli_args.config_file)
-        hw_match = match_hw_model(cli_args, cfg_data)
-        sw_match = match_os_version(cli_args, hw_match.data)
+        try:
+            dev_data = json.loads(cli_args.json)
+        except ValueError:
+            exit_results({
+                'ok': False,
+                'error_type': 'args',
+                'error_message': 'JSON argument formatted incorrectly.'
+            })
+        hw_match = match_hw_model(dev_data, cfg_data)
+        sw_match = match_os_version(dev_data, hw_match.data)
 
     except ArgumentParser.ParserError as exc:
         exit_results({
