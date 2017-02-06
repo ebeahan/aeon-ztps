@@ -10,6 +10,7 @@ import subprocess
 import logging
 import time
 import requests
+from retrying import retry
 
 import aeon.nxos as nxos
 import aeon.nxos.exceptions as NxExc
@@ -178,9 +179,11 @@ def wait_for_device(countdown, poll_delay):
         g_log.info(msg)
 
         try:
-            dev.api.exec_opcmd('delete volatile:system_ready', msg_type='cli_show_ascii')
+            match = dev.api.exec_opcmd("show logging | grep 'CONF_CONTROL: System ready'",
+                                       msg_type='cli_show_ascii')
+            assert len(match) > 0
             return dev
-        except NxExc.CommandError:
+        except AssertionError:
             # means that the file does not exist yet, so wait some time
             # and try again
             time.sleep(poll_delay)
@@ -224,6 +227,7 @@ def post_device_status(dev=None, target=None, message=None, state=None):
 # #####
 # ##### -----------------------------------------------------------------------
 
+@retry(wait_fixed=5000, stop_max_attempt_number=3)
 def do_push_config1(dev):
     topdir = g_cli_args.topdir
     config_dir = os.path.join(topdir, 'etc', 'configs', 'nxos')
@@ -256,7 +260,7 @@ def do_push_config1(dev):
 
     except NxExc.NxosException as exc:
         g_log.critical("unable to push config: {}".format(exc.message))
-        exit_results(dict(
+        exit_results(dev=dev, results=dict(
             ok=False,
             error_type='config',
             message=exc.message))

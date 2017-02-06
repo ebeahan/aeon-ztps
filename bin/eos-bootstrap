@@ -13,6 +13,7 @@ import yaml
 from aeon.eos.device import Device
 from aeon.exceptions import ProbeError, UnauthorizedError
 from aeon.exceptions import ConfigError, CommandError
+from retrying import retry
 
 _OS_NAME = 'eos'
 _PROGNAME = '%s-bootstrap' % _OS_NAME
@@ -249,8 +250,14 @@ def do_push_config(dev):
             message=errmsg))
 
     if changed is True:
-        dev.api.execute(['enable', 'copy running-config startup-config'])
-        g_log.info('config completed OK.')
+        # retry for 5min (5000ms * 60) every 5000ms
+        # because eAPI takes time to activate during boot.
+        @retry(wait_fixed=5000, stop_max_attempt_number=60)
+        def finalize():
+            g_log.info('Saving startup-config...')
+            dev.api.execute(['enable', 'copy running-config startup-config'])
+            g_log.info('config completed OK.')
+        finalize()
 
 
 # ##### -----------------------------------------------------------------------
