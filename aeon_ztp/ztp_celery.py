@@ -93,7 +93,7 @@ def do_finalize(server, os_name, target, log):
     if len(_stderr):
         log.info("finally stderr=[{}]".format(_stderr))
 
-    return rc
+    return rc, _stderr
 
 
 def do_bootstrapper(server, os_name, target, log):
@@ -127,7 +127,7 @@ def do_bootstrapper(server, os_name, target, log):
     if len(_stderr):
         log.error("stderr={}".format(_stderr))
 
-    return rc
+    return rc, _stderr
 
 
 @celery.task
@@ -140,7 +140,7 @@ def ztp_bootstrapper(os_name, target):
         target=target)
 
     state = get_device_state(server, target)
-    if state:
+    if state and state != 'ERROR':
         log.warning('Device at {} has already registered. This is likely a duplicate bootstrap run and will '
                     'be terminated.'.format(target))
         return
@@ -157,12 +157,18 @@ def ztp_bootstrapper(os_name, target):
         log.error('Unable to register device: %s' % body['message'])
         return got.status_code
 
-    rc = do_bootstrapper(server=server, os_name=os_name, target=target, log=log)
+    rc, _stderr = do_bootstrapper(server=server, os_name=os_name, target=target, log=log)
     if 0 != rc:
+        post_device_status(server=server,
+                           os_name=os_name, target=target,
+                           state='ERROR', message='Error running bootstrapper: {}'.format(_stderr))
         return rc
 
-    rc = do_finalize(server=server, os_name=os_name, target=target, log=log)
+    rc, _stderr = do_finalize(server=server, os_name=os_name, target=target, log=log)
     if 0 != rc:
+        post_device_status(server=server,
+                           os_name=os_name, target=target,
+                           state='ERROR', message='Error running finally script: {}'.format(_stderr))
         return rc
 
     post_device_status(server=server,
