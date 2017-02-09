@@ -87,8 +87,7 @@
 - name: TEMPORARY - Install aeon-venos from local package
   pip:
     name: "{{ Install_dir }}/packages/aeon-venos-0.3.2.tar.gz"
-
-# build the docs
+  when: not packer
 
 - name: Build docs using Sphinx
   shell: make html
@@ -113,7 +112,7 @@
     rsync_opts:
       - '--exclude ".*"'
 
-- name: install ansilbe
+- name: install ansible
   pip: name=ansible
 
 - name: install sshpass for local use of ansible
