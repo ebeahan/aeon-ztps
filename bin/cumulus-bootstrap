@@ -426,8 +426,10 @@ def main():
 
     g_log.info("proceeding with bootstrap")
 
-    ensure_os_version(dev)
-
+    if dev.facts['virtual']:
+       g_log.info('Virtual device. No OS upgrade necessary.')
+    else:
+        ensure_os_version(dev)
     g_log.info("bootstrap process finished")
     exit_results(dict(ok=True), dev=dev)
 
