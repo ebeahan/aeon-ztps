@@ -145,7 +145,7 @@ def exit_results(results, exit_error=None, dev=None, target=None):
         post_device_status(dev=dev, target=target, state='DONE', message='bootstrap completed OK')
         sys.exit(0)
     else:
-        post_device_status(dev=dev, target=target, state='FAILED', message=results['message'])
+        post_device_status(dev=dev, target=target, state='ERROR', message=results['message'])
         sys.exit(exit_error or 1)
 
 
