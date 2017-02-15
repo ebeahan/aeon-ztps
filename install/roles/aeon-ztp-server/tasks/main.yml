@@ -84,9 +84,9 @@
 - name: Move aeon-ztps package install file to packages directory
   shell: "mv {{ search_results.files[0].path }} {{ Install_dir }}/packages/"
 
-- name: TEMPORARY - Install aeon-venos from local package
+- name: Install aeon-venos
   pip:
-    name: "{{ Install_dir }}/packages/aeon-venos-0.3.2.tar.gz"
+    name: aeon-venos
   when: not packer
 
 - name: Build docs using Sphinx
