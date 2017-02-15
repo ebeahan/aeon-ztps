@@ -16,7 +16,6 @@
     - etc
     - vendor_images
     - downloads
-    - packages
     - docs
 
 - name: copy aeon-ztp source files over
