@@ -7,6 +7,18 @@
 - name: copy aeon-ztps conf file
   template: src=aeonztp.conf dest=/etc/aeonztp.conf owner=root group=root mode=644
 
+- name: create aeonztp directories
+  file:
+    path: "{{ Install_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ Aeon_user }}"
+    group: "{{ Aeon_group }}"
+    mode: 755
+  with_items:
+    - logs
+    - run
+    - packages
+
 - name: copy aeon-ztps directories over
   copy: src="{{ TopDir }}/{{ item }}" dest={{ Install_dir }}
         owner={{ Aeon_user }} group={{ Aeon_group }}
@@ -40,13 +52,6 @@
     - vendor_images
     - downloads
     - docs
-
-- name: create aeonztp directories
-  file: path={{ Install_dir }}/{{ item }} state=directory
-        owner={{ Aeon_user }} group={{ Aeon_group }} mode=755
-  with_items:
-    - logs
-    - run
 
 - name: create aeonztp /var directories
   file: path={{ item }} state=directory
