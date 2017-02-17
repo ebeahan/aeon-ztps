@@ -186,4 +186,9 @@ def ztp_finalizer(os_name, target):
         logname='aeon-finalizer', logfile=_AEON_LOGFILE,
         target=target)
 
-    return do_finalize(os_name=os_name, target=target, server=server, log=log)
+    rc, _stderr = do_finalize(server=server, os_name=os_name, target=target, log=log)
+    if 0 != rc:
+        post_device_status(server=server,
+                           os_name=os_name, target=target,
+                           state='ERROR', message='Error running finally script: {}'.format(_stderr))
+        return rc

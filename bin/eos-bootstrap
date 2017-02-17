@@ -254,7 +254,7 @@ def do_push_config(dev):
         # because eAPI takes time to activate during boot.
         @retry(wait_fixed=5000, stop_max_attempt_number=60)
         def finalize():
-            g_log.info('Saving startup-config...')
+            g_log.info('Saving startup-config... (This will retry until eAPI is available.)')
             dev.api.execute(['enable', 'copy running-config startup-config'])
             g_log.info('config completed OK.')
         finalize()
