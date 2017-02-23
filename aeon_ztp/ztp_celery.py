@@ -140,11 +140,13 @@ def ztp_bootstrapper(os_name, target):
         target=target)
 
     state = get_device_state(server, target)
-    if state and state != 'ERROR':
+    if state and state not in ('ERROR', 'DONE'):
         log.warning('Device at {} has already registered. This is likely a duplicate bootstrap run and will '
                     'be terminated.'.format(target))
         return
-
+    if state == 'DONE':
+        log.warning('Device at {} has previously successfully completed ZTP process.',
+                    'ZTP process has been initiated again.'.format(target))
     got = requests.post(
         url='http://%s/api/devices' % server,
         json=dict(
