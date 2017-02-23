@@ -145,7 +145,7 @@ def ztp_bootstrapper(os_name, target):
                     'be terminated.'.format(target))
         return
     if state == 'DONE':
-        log.warning('Device at {} has previously successfully completed ZTP process.',
+        log.warning('Device at {} has previously successfully completed ZTP process. '
                     'ZTP process has been initiated again.'.format(target))
     got = requests.post(
         url='http://%s/api/devices' % server,
