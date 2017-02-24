@@ -204,7 +204,81 @@ The following is an example for :literal:`/opt/aeonztps/etc/profiles/default/eos
         exact_match: 4.15.1F
         image: EOS-4.15.1F.swi
 
+
 This :literal:`os-selector.cfg` file instructs the Aeon-ZTP to check the current OS version and match exactly to
 "4.15.1F". If the device does not have this version, then Aeon-ZTPS should install the image "EOS-4.15.1F.swi".
 This file would be located in the :literal:`/opt/aeonztps/vendor_images/eos` directory.
 
+Regular expressions can also be used to match the NOS version. The following example would not perform a NOS
+upgrade if either version 3.1.1 or 3.1.2 was installed on the device:
+
+.. code::  yaml
+
+    default:
+        regex_match: 3\.1\.[12]
+        image: CumulusLinux-3.1.2-amd64.bin
+
+
+**Using Device Facts in OS-Selector**
+
+The OS selector also supports matching based on any combination of hardware facts discovered during the ZTP process.
+Multiple named groups can be created with a list of facts that all must match and an image file that must be installed.
+The names of the groups is arbitrary and is not currently used for anything more than an organizational structure.
+
+The following facts are supported to be used as a match criteria:
+   - os_name
+   - vendor
+   - hw_part_number
+   - hostname
+   - fqdn
+   - virtual (bool)
+   - service_tag
+   - os_version
+   - hw_version
+   - mac_address
+   - serial_number
+   - hw_model
+
+Here is an example os-selector.cfg file:
+
+.. code:: yaml
+
+    # 'default' means match hardware models not explicitly configured
+    default:
+        exact_match: 3.1.2
+        image: CumulusLinux-3.1.2-amd64.bin
+
+    # Group name is arbitrary and can be things like
+    # 'rack-a', 'vendor-b', etc.
+    Accton_Switches:
+
+        # All keyword values here must match with the
+        # device for it to be accepted into this group.
+        matches:
+            hw_model:
+                - Accton_AS6712
+            mac_address:
+                - 0123456789012
+                - 0123456789013
+                - 0123456789014
+
+        # Perform code upgrade if version does not
+        # match this regex.
+        regex_match: 3\.2\.[01]
+
+        # If a fact match is made, and the NOS regex
+        # does not match, this OS is installed.
+        image: CumulusLinux-3.2.1-amd64.bin
+
+    # This group will get Cumulus 2.5.7 installed
+    Cumulus_2_Switches:
+
+        matches:
+            vendor:
+                - CumulusVendor
+            serial_number:
+                - 1111111111
+                - 2222222222
+
+        regex_match: 2\.5\.[67]
+        image: CumulusLinux-2.5.7-amd64.bin
