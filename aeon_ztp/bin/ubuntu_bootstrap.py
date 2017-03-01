@@ -8,22 +8,17 @@ import subprocess
 import logging
 import time
 import requests
-import semver
-from pexpect import pxssh
-from pexpect.exceptions import EOF
-from pexpect.pxssh import ExceptionPxssh
 
 from aeon.cumulus.device import Device
-from paramiko import AuthenticationException
-from paramiko.ssh_exception import NoValidConnectionsError
+from aeon.exceptions import UnauthorizedError
 
-_PROGNAME = 'cumulus-bootstrap'
+_PROGNAME = 'ubuntu-bootstrap'
 _PROGVER = '0.0.1'
-_OS_NAME = 'cumulus'
+_OS_NAME = 'ubuntu'
 
 _DEFAULTS = {
     'init-delay': 5,
-    'reload-delay': 10*60,
+    'reload-delay': 10 * 60,
 }
 
 # ##### -----------------------------------------------------------------------
@@ -34,7 +29,7 @@ _DEFAULTS = {
 
 psr = argparse.ArgumentParser(
     prog=_PROGNAME,
-    description="Aeon-ZTP bootstrapper for Cumulus Linux",
+    description="Aeon-ZTP bootstrapper for Ubuntu Linux",
     add_help=True)
 
 psr.add_argument(
@@ -149,7 +144,7 @@ def exit_results(results, exit_error=None, dev=None, target=None):
         sys.exit(exit_error or 1)
 
 
-def wait_for_device(countdown, poll_delay, msg=None):
+def wait_for_device(countdown, poll_delay):
     target = g_cli_args.target
     user = g_cli_args.user or os.getenv(g_cli_args.env_user)
     passwd = os.getenv(g_cli_args.env_passwd)
@@ -176,25 +171,24 @@ def wait_for_device(countdown, poll_delay, msg=None):
     # we'll use the probe error to detect if it is or not
 
     while not dev:
-        new_msg = msg or 'OS installation in progress. Timeout remaining: {} seconds'.format(countdown)
-        post_device_status(target=target, state='AWAIT-ONLINE', message=new_msg)
-        g_log.info(new_msg)
+        msg = 'reload-countdown at: {} seconds'.format(countdown)
+        post_device_status(target=target, state='AWAIT-ONLINE', message=msg)
+        g_log.info(msg)
 
         try:
             dev = Device(target, user=user, passwd=passwd,
                          timeout=poll_delay)
 
-        except AuthenticationException as e:
-            g_log.info('Authentication exception reported: {} \n args: {}'.format(e, e.args))
-            exit_results(target=target, results=dict(
+        except UnauthorizedError:
+            exit_results(dev=dev, results=dict(
                 ok=False,
                 error_type='login',
                 message='Unauthorized - check user/password'))
 
-        except NoValidConnectionsError as e:
+        except Exception:                # TODO: fix this broad exception
             countdown -= poll_delay
             if countdown <= 0:
-                exit_results(target=target, results=dict(
+                exit_results(dev=dev, results=dict(
                     ok=False,
                     error_type='login',
                     message='Failed to connect to target %s within reload countdown' % target))
@@ -204,50 +198,6 @@ def wait_for_device(countdown, poll_delay, msg=None):
     post_device_facts(dev)
     return dev
 
-
-def wait_for_onie_rescue(countdown, poll_delay, user='root'):
-    """Polls for SSH access to cumulus device in ONIE rescue mode.
-
-    The poll functionality was necessary in addition to the current wait_for_device function
-    because of incompatibilities with the dropbear_2013 OS that is on the cumulus switches and
-    paramiko in the existing function.
-
-    Args:
-        countdown (int): Countdown in seconds to wait for device to become reachable.
-        poll_delay (int): Countdown in seconds between poll attempts.
-        user (str): SSH username to use. Defaults to 'root'.
-
-    """
-    target = g_cli_args.target
-    while countdown >= 0:
-        try:
-            msg = 'Cumulus installation in progress. Waiting for boot to ONIE rescue mode. Timeout remaining: {} seconds'.format(countdown)
-            post_device_status(target=target, state='AWAIT-ONLINE', message=msg)
-            g_log.info(msg)
-            ssh = pxssh.pxssh(options={"StrictHostKeyChecking": "no", "UserKnownHostsFile": "/dev/null"})
-            ssh.login(target, user, auto_prompt_reset=False)
-            ssh.PROMPT = 'ONIE:.*#'
-            ssh.sendline('\n')
-            ssh.prompt()
-
-            return True
-        except (ExceptionPxssh, EOF) as e:
-            if (str(e) == 'Could not establish connection to host') or isinstance(e, EOF):
-                ssh.close()
-                countdown -= poll_delay
-                time.sleep(poll_delay)
-            else:
-                g_log.error('Error accessing {} in ONIE rescue mode: {}.'.format(target, str(e)))
-                exit_results(target=target, results=dict(
-                    ok=False,
-                    error_type='login',
-                    message='Error accessing {} in ONIE rescue mode: {}.'.format(target, str(e))))
-    else:
-        g_log.error('Device {} not reachable in ONIE rescue mode within reload countdown.'.format(target))
-        exit_results(target=target, results=dict(
-            ok=False,
-            error_type='login',
-            message='Device {} not reachable in ONIE rescue mode within reload countdown.' % target))
 # ##### -----------------------------------------------------------------------
 # #####
 # #####                           OS install process
@@ -259,7 +209,7 @@ def get_required_os(dev):
     profile_dir = os.path.join(g_cli_args.topdir, 'etc', 'profiles', 'default', _OS_NAME)
     conf_fpath = os.path.join(profile_dir, 'os-selector.cfg')
 
-    cmd = "{topdir}/bin/aztp-os-selector -j '{dev_json}' -c {config}".format(
+    cmd = "{topdir}/bin/aztp_os_selector.py -j '{dev_json}' -c {config}".format(
         topdir=g_cli_args.topdir,
         dev_json=json.dumps(dev.facts),
         config=conf_fpath)
@@ -283,49 +233,6 @@ def get_required_os(dev):
             message=errmsg))
 
 
-def onie_install(dev, image_name):
-    """Initiates install in ONIE-RESCUE mode.
-
-    Args:
-        dev (Device object): Cumulus device object
-        image_name (str): Name of image to download
-    """
-
-    msg = 'Cumulus download and verification in progress.'
-    post_device_status(dev=dev, state='ONIE-RESCUE', message=msg)
-    g_log.info(msg)
-    try:
-        ssh = pxssh.pxssh(options={"StrictHostKeyChecking": "no", "UserKnownHostsFile": "/dev/null"})
-        ssh.login(dev.target, 'root', auto_prompt_reset=False)
-        ssh.PROMPT = 'ONIE:.*#'
-        ssh.sendline('\n')
-        ssh.prompt()
-
-        # Start installation process
-        ssh.sendline('onie-nos-install http://{server}/images/{os_name}/{image_name}'
-                     .format(server=g_cli_args.server, os_name=_OS_NAME, image_name=image_name))
-
-        # 'installer' means that the download has started
-        ssh.expect('installer', timeout=15)
-
-        # Indicates that the image has been downloaded and verified
-        ssh.expect('Please reboot to start installing OS.', timeout=180)
-
-        ssh.prompt()
-        ssh.sendline('reboot')
-        time.sleep(2)
-        ssh.close()
-
-        msg = 'Cumulus download completed and verified, reboot initiated.'
-        g_log.info(msg)
-        post_device_status(dev=dev, state='OS-INSTALL', message=msg)
-        return True
-
-    except pxssh.ExceptionPxssh as e:
-        g_log.info(str(e))
-        exit_results(dev=dev, target=g_cli_args.target, results=dict(ok=False, error_type='install', message=e))
-
-
 def install_os(dev, image_name):
     vendor_dir = os.path.join(g_cli_args.topdir, 'vendor_images', _OS_NAME)
 
@@ -337,42 +244,18 @@ def install_os(dev, image_name):
             ok=False, error_type='install',
             message=errmsg))
 
-    msg = 'Installing Cumulus image=[%s] ... this can take up to 30 min.' % image_name
+    msg = 'installing OS image=[%s] ... please be patient' % image_name
     g_log.info(msg)
     post_device_status(dev=dev, state='OS-INSTALL', message=msg)
 
-    os_semver = semver.parse_version_info(dev.facts['os_version'])
+    all_good, results = dev.api.execute([
+        'sudo /usr/cumulus/bin/cl-img-install -sf http://{server}/images/{os_name}/{image_name}'
+        .format(server=g_cli_args.server, os_name=_OS_NAME, image_name=image_name)
+    ])
 
-    # Cumulus 2.x upgrade command is removed in Cumulus 3.x, so two upgrade methods are required
-    # Cumulus 2.x upgrade
-    if os_semver.major == 2:
-        all_good, results = dev.api.execute([
-            'sudo /usr/cumulus/bin/cl-img-install -sf http://{server}/images/{os_name}/{image_name}'
-                .format(server=g_cli_args.server, os_name=_OS_NAME, image_name=image_name)
-        ])
-        if not all_good:
-            import pdb
-            pdb.set_trace()
-    # Cumulus 3.x upgrade
-    else:
-        all_good, results = dev.api.execute(['sudo onie-select -rf'])
-        if not all_good:
-            import pdb
-            pdb.set_trace()
-        dev.api.execute(['sudo reboot'])
-        time.sleep(60)
-
-        # Boot into ONIE rescue mode
-        wait_for_onie_rescue(countdown=300, poll_delay=10, user='root')
-
-        # Download and verify OS
-        onie_install(dev, image_name)
-
-        # Wait for onie-rescue shell to terminate
-        time.sleep(60)
-
-        # Wait for actual install to occur. This takes up to 30 min.
-        wait_for_device(countdown=1800, poll_delay=30)
+    if not all_good:
+        import pdb
+        pdb.set_trace()
 
 
 def ensure_os_version(dev):
@@ -386,18 +269,15 @@ def ensure_os_version(dev):
     install_os(dev, image_name=os_install['image'])
 
     g_log.info('software install OK')
+    g_log.info('rebooting device ... please be patient')
 
-    os_semver = semver.parse_version_info(dev.facts['os_version'])
-    if os_semver.major < 3:
-        g_log.info('rebooting device ... please be patient')
+    post_device_status(
+        dev, state='OS-REBOOTING',
+        message='OS install completed, now rebooting ... please be patient')
 
-        post_device_status(
-            dev, state='OS-REBOOTING',
-            message='OS install completed, now rebooting ... please be patient')
-
-        dev.api.execute(['sudo reboot'])
-        time.sleep(g_cli_args.init_delay)
-        return wait_for_device(countdown=g_cli_args.reload_delay, poll_delay=10)
+    dev.api.execute(['sudo reboot'])
+    time.sleep(g_cli_args.init_delay)
+    return wait_for_device(countdown=g_cli_args.reload_delay, poll_delay=10)
 
 
 # ##### -----------------------------------------------------------------------
@@ -422,16 +302,11 @@ def main():
         message='bootstrap started, waiting for device access')
 
     time.sleep(g_cli_args.init_delay)
-    dev = wait_for_device(countdown=g_cli_args.reload_delay, poll_delay=10, msg='Waiting for device access')
+    dev = wait_for_device(countdown=g_cli_args.reload_delay, poll_delay=10)
 
-    g_log.info("proceeding with bootstrap")
-
-    if dev.facts['virtual']:
-       g_log.info('Virtual device. No OS upgrade necessary.')
-    else:
-        ensure_os_version(dev)
     g_log.info("bootstrap process finished")
     exit_results(dict(ok=True), dev=dev)
+
 
 if '__main__' == __name__:
     main()

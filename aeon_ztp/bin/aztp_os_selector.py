@@ -9,7 +9,7 @@ import operator
 from collections import namedtuple
 from yaml.scanner import ScannerError
 
-_PROGNAME = 'aztp-os-selector'
+_PROGNAME = 'aztp_os_selector'
 
 
 class HwNoMatchError(Exception):
@@ -64,7 +64,7 @@ def cli_parse(cmdargs=None):
 
 def exit_results(results, exit_error=None):
     json.dump(results, fp=sys.stdout)
-    sys.exit(0 if results['ok'] is True else exit_error or 1)
+    sys.exit(0 if results['ok'] else exit_error or 1)
 
 
 def load_cfg(filepath):
@@ -111,8 +111,8 @@ def match_hw_model(dev_data, cfg_data):
             raise HwNoMatchError()
     elif n_found > 1:
         raise HwMultiMatchError(
-            'matching both: {}'
-            .format([m.re.pattern for m in matches])
+            'matches multiple os-selector groups: {}'
+            .format(matches)
         )
 
     return item_match(matches[0], cfg_data[matches[0]])

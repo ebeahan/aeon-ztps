@@ -24,7 +24,7 @@
         owner={{ Aeon_user }} group={{ Aeon_group }}
         directory_mode=775
   with_items:
-    - bin
+    - aeon_ztp/bin
     - etc
     - vendor_images
     - downloads
@@ -69,9 +69,6 @@
         src={{ Install_dir }}/tftpboot/ztp-cumulus.sh
         dest={{ Install_dir }}/downloads/ztp-cumulus.sh
 
-- name: install aztp-db-flush utility
-  file: state=link src={{ Install_dir }}/bin/aztp-db-flush
-        dest=/usr/local/bin/aztp-db-flush
 
 - name: Build aeon-ztp from source
   shell: python setup.py sdist

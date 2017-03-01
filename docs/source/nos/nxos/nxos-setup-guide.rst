@@ -95,9 +95,3 @@ location: :literal:`vendor_images/nxos/nxos.7.0.3.I2.2d.bin`
 
 If you want to change this configuration, you will need to modify this :literal:`os-selector.cfg` file and copy over
 the necessary Cisco NX-OS software images.
-
-.. warning::
-   The :literal:`bin/nxos-bootstrap` program does not check against the attempt to install an OS on a vNXOS
-   system. Therefore it is your responsibility to ensure that if you are using vNXOS, that the correct version
-   is set in the :literal:`os-selector.cfg` file.
-

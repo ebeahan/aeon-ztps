@@ -73,8 +73,3 @@ running either of those version, then this file instructs Aeon-ZTPS to install t
 
 If you want to change this configuration, you will need to modify this :literal:`os-selector.cfg` file and copy over
 the necessary Cumulus software images.
-
-.. warning::
-   The :literal:`bin/cumulus-bootstrap` program does not check against the attempt to install an OS on a Cumulus VX
-   system. Therefore it is your responsibility to ensure that if you are using Cumulus VX, that the correct version
-   is set in the :literal:`os-selector.cfg` file.

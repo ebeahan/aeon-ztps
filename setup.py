@@ -35,6 +35,7 @@ setup(
     author="Jeremy Schulman",
     author_email="jeremy@apstra.com",
     description=("AEON ZTP Server"),
+    scripts=['aeon_ztp/bin/aztp-db-flush'],
     license="Apache 2.0",
     keywords="networking automation vendor-agnostic",
     packages=find_packages(exclude=["tests", ".*"]),

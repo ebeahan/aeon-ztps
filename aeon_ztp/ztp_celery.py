@@ -97,7 +97,7 @@ def do_finalize(server, os_name, target, log):
 
 
 def do_bootstrapper(server, os_name, target, log):
-    prog = '%s/bin/%s-bootstrap' % (_AEON_DIR, os_name)
+    prog = '%s/bin/%s_bootstrap*' % (_AEON_DIR, os_name)
 
     cmd_args = [
         prog,
