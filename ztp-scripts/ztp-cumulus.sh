@@ -125,11 +125,12 @@ function kickstart_aeon_ztp(){
 
 create_remote_user
 kickstart_aeon_ztp
-enable_mgmt_vrf
 
 if [[ ! is_cumulus_vx ]]; then
    install_license
 fi
+
+enable_mgmt_vrf
 
 # CUMULUS-AUTOPROVISIONING
 
