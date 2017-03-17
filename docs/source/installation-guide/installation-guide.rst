@@ -46,14 +46,14 @@ Install Setup Checklist
         :literal:`install/roles/dhcp-server/templates/dhcpd.conf`
 
 
-Install via VirtualBox
-----------------------
+Install via Vagrant
+-------------------
 
 .. _Vagrant: https://www.vagrantup.com/
 .. _VirtualBox: https://www.virtualbox.org/wiki/Downloads/
 .. _Ansible: http://docs.ansible.com/ansible/intro_installation.html/
 
-The current installation process is designed to install the Aeon-ZTPS into a VirtualBox environment using Vagrant and
+The current installation process is designed to install the Aeon-ZTPS into a Vagrant environment using Vagrant and
 an Ansible playbook.
 
 The process uses a combination of the following tools, and associated versions.  This process has been verified using
@@ -80,12 +80,23 @@ Edit the :literal:`install/Vagrantfile` file to also assign the eth1 value as pa
     .. figure:: install-vagrantfile.png
 
 
-To perform the build and installation into VirtualBox, do the following on your host machine:
+To perform the build and installation into Vagrant, do the following on your host machine:
 
 .. code:: bash
 
     cd install
     vagrant up
+
+Once the VM build is complete, and the VM has been automatically rebooted, you can login to the VM by typing:
+
+.. code:: bash
+
+    vagrant ssh
+
+----------
+Login Info
+----------
+An account with username "admin" and password "admin" is created by default.
 
 
 Install via Ansible Playbook
