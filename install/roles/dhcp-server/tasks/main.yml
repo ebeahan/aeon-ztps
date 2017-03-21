@@ -1,19 +1,38 @@
 - include_vars: "{{ playbook_dir }}/vars/dhcp-server.yml"
 
-- name: install ISC DHCP server
-  apt: name=isc-dhcp-server state=present
+- name: Install ISC DHCP server
+  apt:
+    name: isc-dhcp-server
+    state: present
 
-- name: install DHCP configuration file
-  template: src=dhcpd.conf dest=/etc/dhcp/dhcpd.conf
+- name: Install DHCP configuration file
+  template:
+    src: dhcpd.conf
+    dest: /etc/dhcp/dhcpd.conf
   when: DHCPS_enable == True
 
-- name: install DHCP reset script
-  copy: src=dhcpd-reset dest=/usr/local/bin mode=755
+- name: Install Example DHCP configuration file
+  copy:
+    src: aeon_ztps_example_dhcpd.conf
+    dest: /etc/dhcp/aeon_ztps_example_dhcpd.conf
+  when: DHCPS_enable == False
 
-- name: enable / start DHCP service
-  service: name=isc-dhcp-server enabled=yes state=started
+- name: Install DHCP reset script
+  copy:
+    src: dhcpd-reset
+    dest: /usr/local/bin
+    mode: 755
+
+- name: Enable / start DHCP service
+  service:
+    name: isc-dhcp-server
+    enabled: yes
+    state: started
   when: DHCPS_enable == True
 
 - name: Disable / stop DHCP service
-  service: name=isc-dhcp-server enabled=no state=stopped
+  service:
+    name: isc-dhcp-server
+    enabled: no
+    state: stopped
   when: DHCPS_enable == False
