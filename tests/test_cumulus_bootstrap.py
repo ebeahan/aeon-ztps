@@ -131,7 +131,8 @@ def test_post_device_facts(mock_requests, device, cb_obj):
         'os_name': cumulus_bootstrap._OS_NAME,
         'ip_addr': device.target,
         'hw_model': device.facts['hw_model'],
-        'serial_number': device.facts['serial_number']
+        'serial_number': device.facts['serial_number'],
+        'facts': json.dumps(device.facts)
     },
         url='http://{}/api/devices/facts'.format(args['server']))
 

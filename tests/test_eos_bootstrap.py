@@ -39,6 +39,8 @@ factsv416 = {
     'os': 'eos'
 }
 
+factsv416['facts'] = json.dumps(factsv416)
+
 # Device that will be upgraded
 facts_v410 = dict(factsv416)
 facts_v410['os_version'] = '4.10.1'
@@ -104,7 +106,8 @@ def test_post_device_facts(mock_requests, device, eb_obj):
         'os_name': eos_bootstrap._OS_NAME,
         'ip_addr': device.target,
         'hw_model': device.facts['hw_model'],
-        'serial_number': device.facts['serial_number']
+        'serial_number': device.facts['serial_number'],
+        'facts': json.dumps(device.facts)
     },
         url='http://{}/api/devices/facts'.format(args['server']))
 

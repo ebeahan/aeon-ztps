@@ -37,6 +37,8 @@ facts = {
     'hw_model': 's1000'
 }
 
+facts['facts'] = json.dumps(facts)
+
 # Cumulus 2.x device
 facts_v2 = dict(facts)
 facts_v2['os_version'] = '2.5.7'
@@ -106,7 +108,8 @@ def test_post_device_facts(mock_requests, device, ub_obj):
         'os_name': ub_obj.os_name,
         'ip_addr': device.target,
         'hw_model': device.facts['hw_model'],
-        'serial_number': device.facts['serial_number']
+        'serial_number': device.facts['serial_number'],
+        'facts': json.dumps(device.facts)
     },
         url='http://{}/api/devices/facts'.format(args['server']))
 

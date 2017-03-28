@@ -49,6 +49,16 @@ def get_device_state(server, target):
     return state
 
 
+def get_device_facts(server, target):
+    r = requests.get(url='http://{server}/api/devices?ip_addr={ip_addr}'
+                     .format(server=server, ip_addr=target))
+    try:
+        facts = r.json()['items'][0]['facts']
+    except KeyError:
+        facts = None
+    return facts
+
+
 def setup_logging(logname, logfile, target):
     log = logging.getLogger(name=logname)
     log.setLevel(logging.INFO)
@@ -68,19 +78,31 @@ def do_finalize(server, os_name, target, log):
         log.info('no user provided finally script')
         return 0
 
-    cmd = '{prog}'.format(prog=finalizer)
+    json_facts = get_device_facts(server, target)
 
+    cmd_args = [
+        finalizer,
+        '-t %s' % target,
+        '-s %s' % server,
+        '-u AEON_TUSER',
+        '-p AEON_TPASSWD',
+        '-l %s' % _AEON_LOGFILE,
+        "-f '{}'".format(json_facts)
+    ]
+
+    cmd_str = ' '.join(cmd_args)
     this_env = os.environ.copy()
     this_env.update(dict(
         AEON_LOGFILE=_AEON_LOGFILE,
         AEON_TARGET=target,
-        AEON_SERVER=server))
+        AEON_SERVER=server,
+        FACTS=json_facts))
 
     child = subprocess.Popen(
-        cmd, shell=True, env=this_env,
+        cmd_str, shell=True, env=this_env,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    message = "executing 'finally' script:[pid={pid}] {cmd}".format(pid=child.pid, cmd=cmd)
+    message = "executing 'finally' script:[pid={pid}] {cmd}".format(pid=child.pid, cmd=cmd_str)
     log.info(message)
     post_device_status(server=server,
                        os_name=os_name, target=target,
@@ -138,45 +160,46 @@ def ztp_bootstrapper(os_name, target):
     log = setup_logging(
         logname='aeon-bootstrapper', logfile=_AEON_LOGFILE,
         target=target)
+    try:
+        state = get_device_state(server, target)
+        if state and state not in ('ERROR', 'DONE'):
+            log.warning('Device at {} has already registered. This is likely a duplicate bootstrap run and will '
+                        'be terminated.'.format(target))
+            return
+        if state == 'DONE':
+            log.warning('Device at {} has previously successfully completed ZTP process. '
+                        'ZTP process has been initiated again.'.format(target))
+        got = requests.post(
+            url='http://%s/api/devices' % server,
+            json=dict(
+                ip_addr=target, os_name=os_name,
+                state='REGISTERED',
+                message='device registered, waiting for bootstrap start'))
 
-    state = get_device_state(server, target)
-    if state and state not in ('ERROR', 'DONE'):
-        log.warning('Device at {} has already registered. This is likely a duplicate bootstrap run and will '
-                    'be terminated.'.format(target))
-        return
-    if state == 'DONE':
-        log.warning('Device at {} has previously successfully completed ZTP process. '
-                    'ZTP process has been initiated again.'.format(target))
-    got = requests.post(
-        url='http://%s/api/devices' % server,
-        json=dict(
-            ip_addr=target, os_name=os_name,
-            state='REGISTERED',
-            message='device registered, waiting for bootstrap start'))
+        if not got.ok:
+            body = got.json()
+            log.error('Unable to register device: %s' % body['message'])
+            return got.status_code
 
-    if not got.ok:
-        body = got.json()
-        log.error('Unable to register device: %s' % body['message'])
-        return got.status_code
+        rc, _stderr = do_bootstrapper(server=server, os_name=os_name, target=target, log=log)
+        if 0 != rc:
+            post_device_status(server=server,
+                               os_name=os_name, target=target,
+                               state='ERROR', message='Error running bootstrapper: {}'.format(_stderr))
+            return rc
 
-    rc, _stderr = do_bootstrapper(server=server, os_name=os_name, target=target, log=log)
-    if 0 != rc:
+        rc, _stderr = do_finalize(server=server, os_name=os_name, target=target, log=log)
+        if 0 != rc:
+            post_device_status(server=server,
+                               os_name=os_name, target=target,
+                               state='ERROR', message='Error running finally script: {}'.format(_stderr))
+            return rc
+
         post_device_status(server=server,
                            os_name=os_name, target=target,
-                           state='ERROR', message='Error running bootstrapper: {}'.format(_stderr))
-        return rc
-
-    rc, _stderr = do_finalize(server=server, os_name=os_name, target=target, log=log)
-    if 0 != rc:
-        post_device_status(server=server,
-                           os_name=os_name, target=target,
-                           state='ERROR', message='Error running finally script: {}'.format(_stderr))
-        return rc
-
-    post_device_status(server=server,
-                       os_name=os_name, target=target,
-                       state='DONE', message='device bootstrap completed')
-
+                           state='DONE', message='device bootstrap completed')
+    finally:
+        logging.shutdown()
     return rc
 
 
@@ -187,10 +210,12 @@ def ztp_finalizer(os_name, target):
     log = setup_logging(
         logname='aeon-finalizer', logfile=_AEON_LOGFILE,
         target=target)
-
-    rc, _stderr = do_finalize(server=server, os_name=os_name, target=target, log=log)
-    if 0 != rc:
-        post_device_status(server=server,
-                           os_name=os_name, target=target,
-                           state='ERROR', message='Error running finally script: {}'.format(_stderr))
-        return rc
+    try:
+        rc, _stderr = do_finalize(server=server, os_name=os_name, target=target, log=log)
+        if 0 != rc:
+            post_device_status(server=server,
+                               os_name=os_name, target=target,
+                               state='ERROR', message='Error running finally script: {}'.format(_stderr))
+            return rc
+    finally:
+        logging.shutdown()

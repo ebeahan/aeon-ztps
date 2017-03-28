@@ -123,7 +123,8 @@ class CumulusBootstrap:
                 serial_number=dev.facts['serial_number'],
                 hw_model=dev.facts['hw_model'],
                 os_version=dev.facts['os_version'],
-                os_name=_OS_NAME))
+                os_name=_OS_NAME,
+                facts=json.dumps(dev.facts)))
 
     def post_device_status(self, dev=None, target=None, message=None, state=None):
         requests.put(

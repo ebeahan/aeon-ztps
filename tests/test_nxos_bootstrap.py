@@ -41,6 +41,8 @@ factsv703 = {
     'os': 'nxos'
 }
 
+factsv703['facts'] = json.dumps(factsv703)
+
 factsv700 = dict(factsv703)
 factsv700['os_version'] = '7.0(0)I2(2d)'
 
@@ -104,7 +106,8 @@ def test_post_device_facts(mock_requests, device, nb_obj):
         'os_name': nb_obj.os_name,
         'ip_addr': device.target,
         'hw_model': device.facts['hw_model'],
-        'serial_number': device.facts['serial_number']
+        'serial_number': device.facts['serial_number'],
+        'facts': json.dumps(device.facts)
     },
         url='http://{}/api/devices/facts'.format(args['server']))
 

@@ -68,7 +68,8 @@ def device(session, device_data=None):
                    'message': 'device added',
                    'os_version': '1.0.0a',
                    'serial_number': '1234567890',
-                   'state': 'excellent'
+                   'state': 'excellent',
+                   'facts': '{"mac_address": "00112233445566"}'
                    }
     device = models.Device(**device_data)
     session.add(device)

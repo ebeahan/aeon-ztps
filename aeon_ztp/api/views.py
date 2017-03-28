@@ -245,6 +245,7 @@ def _put_device_facts():
         rec.serial_number = rqst_data.get('serial_number')
         rec.hw_model = rqst_data.get('hw_model')
         rec.os_version = rqst_data.get('os_version')
+        rec.facts = rqst_data.get('facts')
         rec.updated_at = time_now()
         db.commit()
 

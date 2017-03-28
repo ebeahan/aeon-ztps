@@ -23,8 +23,3 @@
 
 - name: upgrade setuptools
   pip: name=setuptools extra_args='--upgrade'
-
-#- copy: src=requirements.txt dest=/tmp/requirements.txt
-#
-#- name: install python packages
-#  pip: requirements=/tmp/requirements.txt

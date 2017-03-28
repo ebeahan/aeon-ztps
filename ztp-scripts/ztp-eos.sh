@@ -29,6 +29,7 @@ SERVER_PORT=8080
 # ----------------------------------------------------
 
 DHCP_SUCCESS=$(grep -m1 DHCP_SUCCESS /var/log/messages)
+NAME_SERVER=$(grep -m1 nameserver /var/log/messages)
 
 # example output:
 # ---------------
@@ -39,6 +40,8 @@ INTF=$(echo ${DHCP_SUCCESS} | gawk 'match($0, /received on ([^ ]+)/,arr){ print 
 IP_ADDR=$(echo ${DHCP_SUCCESS} | gawk 'match($0, /Ip Address: ([^;]+)/,arr){ print arr[1]}')
 GATEWAY=$(echo ${DHCP_SUCCESS} | gawk 'match($0, /Gateway: ([^;]+)/,arr){ print arr[1]}')
 BOOTFILE=$(echo ${DHCP_SUCCESS} | gawk 'match($0, /Boot File: ([^ ]+)/,arr){ print arr[1]}')
+DNS_IP=$(echo ${NAME_SERVER} | gawk 'match($0, /nameserver ([^ ]+)#/,arr){
+print arr[1]}')
 
 SERVER=$(echo ${BOOTFILE} | cut --delimiter=/ -f3)
 
@@ -79,6 +82,8 @@ ip route vrf management 0.0.0.0/0 $GATEWAY"
 fi
 
 ${CLI} "configure terminal
+no ip name-server vrf default
+ip name-server vrf management $DNS_IP
 interface $INTF
 vrf forwarding management
 ip address $IP_ADDR"
