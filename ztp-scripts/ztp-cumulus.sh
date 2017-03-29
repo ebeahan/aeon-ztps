@@ -126,7 +126,7 @@ function kickstart_aeon_ztp(){
 create_remote_user
 kickstart_aeon_ztp
 
-if [[ ! is_cumulus_vx ]]; then
+if ! is_cumulus_vx; then
    install_license
 fi
 
