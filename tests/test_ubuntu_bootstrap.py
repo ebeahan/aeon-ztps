@@ -2,7 +2,6 @@ import pytest
 import os
 import mock
 import json
-import semver
 from copy import deepcopy
 from paramiko import AuthenticationException
 from paramiko.ssh_exception import NoValidConnectionsError
@@ -102,14 +101,17 @@ def test_ubuntu_bootstrap(cli_args, ub_obj):
 
 @mock.patch('aeon_ztp.bin.ubuntu_bootstrap.requests')
 def test_post_device_facts(mock_requests, device, ub_obj):
-    ub_obj.post_device_facts(device)
+    ub_obj.dev = device
+    ub_obj.post_device_facts()
     mock_requests.put.assert_called_with(json={
         'os_version': device.facts['os_version'],
         'os_name': ub_obj.os_name,
         'ip_addr': device.target,
         'hw_model': device.facts['hw_model'],
         'serial_number': device.facts['serial_number'],
-        'facts': json.dumps(device.facts)
+        'facts': json.dumps(device.facts),
+        'image_name': None,
+        'finally_script': None
     },
         url='http://{}/api/devices/facts'.format(args['server']))
 
@@ -117,11 +119,10 @@ def test_post_device_facts(mock_requests, device, ub_obj):
 @mock.patch('aeon_ztp.bin.ubuntu_bootstrap.requests')
 def test_post_device_status(mock_requests, device, ub_obj):
     kw = {
-        'dev': device,
-        'target': device.target,
         'message': 'Test message',
         'state': 'DONE'
     }
+    ub_obj.dev = device
     ub_obj.post_device_status(**kw)
     mock_requests.put.assert_called_with(json={
         'message': kw['message'],
@@ -136,15 +137,12 @@ def test_post_device_status(mock_requests, device, ub_obj):
 def test_exit_results(mock_post, ub_obj, device):
     kw = {
         'results': {'ok': True},
-        'dev': device,
-        'target': device.target,
         'exit_error': None,
     }
+    ub_obj.dev = device
     with pytest.raises(SystemExit) as e:
         ub_obj.exit_results(**kw)
     mock_post.assert_called_with(
-        dev=kw['dev'],
-        target=kw['target'],
         state='DONE',
         message='bootstrap completed OK'
     )
@@ -154,15 +152,11 @@ def test_exit_results(mock_post, ub_obj, device):
     kw = {
         'results': {'ok': False,
                     'message': 'Error Message'},
-        'dev': device,
-        'target': device.target,
         'exit_error': 1,
     }
     with pytest.raises(SystemExit) as e:
         ub_obj.exit_results(**kw)
     mock_post.assert_called_with(
-        dev=kw['dev'],
-        target=kw['target'],
         state='ERROR',
         message=kw['results']['message']
     )
@@ -174,11 +168,9 @@ def test_wait_for_device_missing_username(mock_exit, cli_args, device):
     new_args = deepcopy(cli_args)
     new_args.user = None
     new_args.env_user = None
-    local_cb = ubuntu_bootstrap.UbuntuBootstrap(args['server'], new_args)
     with pytest.raises(SystemExit):
-        local_cb.wait_for_device(1, 2)
+        ubuntu_bootstrap.UbuntuBootstrap(args['server'], new_args)
     mock_exit.assert_called_with(
-        target=device.target,
         results={'ok': False,
                  'error_type': 'login',
                  'message': 'login user-name missing'}
@@ -189,11 +181,9 @@ def test_wait_for_device_missing_username(mock_exit, cli_args, device):
 def test_wait_for_device_missing_passwd(mock_exit, cli_args, device):
     new_args = deepcopy(cli_args)
     new_args.env_passwd = None
-    local_cb = ubuntu_bootstrap.UbuntuBootstrap(args['server'], new_args)
     with pytest.raises(SystemExit):
-        local_cb.wait_for_device(1, 2)
+        ubuntu_bootstrap.UbuntuBootstrap(args['server'], new_args)
     mock_exit.assert_called_with(
-        target=device.target,
         results={'ok': False,
                  'error_type': 'login',
                  'message': 'login user-password missing'}
@@ -208,7 +198,6 @@ def test_wait_for_device_auth_exception(mock_requests, mock_post_dev, mock_dev, 
     with pytest.raises(SystemExit):
         ub_obj.wait_for_device(1, 2)
     mock_exit.assert_called_with(
-        target=ub_obj.cli_args.target,
         results={'ok': False,
                  'error_type': 'login',
                  'message': 'Unauthorized - check user/password'}
@@ -223,7 +212,6 @@ def test_wait_for_device_no_valid_connections(mock_dev, mock_exit, mock_time, ub
     with pytest.raises(SystemExit):
         ub_obj.wait_for_device(2, 1)
     mock_exit.assert_called_with(
-        target=ub_obj.cli_args.target,
         results={'ok': False,
                  'error_type': 'login',
                  'message': 'Failed to connect to target %s within reload countdown' % ub_obj.cli_args.target}
@@ -232,136 +220,39 @@ def test_wait_for_device_no_valid_connections(mock_dev, mock_exit, mock_time, ub
 
 @mock.patch('aeon_ztp.bin.ubuntu_bootstrap.UbuntuBootstrap.post_device_facts')
 @mock.patch('aeon_ztp.bin.ubuntu_bootstrap.Device')
-def test_wait_for_device(mock_dev, mock_post_facts, ub_obj):
+def test_wait_for_device(mock_dev, mock_post_facts, ub_obj, device):
     poll_delay = 2
-    dev = ub_obj.wait_for_device(1, poll_delay)
+    ub_obj.dev = device
+    ub_obj.wait_for_device(1, poll_delay)
     mock_dev.assert_called_with(
         ub_obj.cli_args.target,
         passwd=os.environ['ENV_PASS'],
         timeout=poll_delay,
         user=ub_obj.cli_args.user or os.getenv(ub_obj.cli_args.env_user)
     )
-    mock_post_facts.assert_called_with(
-        dev
-    )
+    mock_post_facts.assert_called()
 
 
-@mock.patch('aeon_ztp.bin.ubuntu_bootstrap.subprocess')
 @mock.patch('aeon_ztp.bin.ubuntu_bootstrap.UbuntuBootstrap.exit_results', side_effect=SystemExit)
-def test_get_required_os_exception(mock_exit_results, mock_subprocess, device):
-    mock_subprocess.Popen.return_value.communicate.return_value = ('stdout', 'stderr')
-    local_cb = ubuntu_bootstrap.UbuntuBootstrap(args['server'], cli_args())
-    with pytest.raises(SystemExit):
-        local_cb.get_required_os(device)
-    mock_exit_results.assert_called_with(dev=device,
-                                         results={'message': 'Unable to load os-select output as JSON: stdout',
-                                                  'error_type': 'install',
-                                                  'ok': False})
-
-
+@mock.patch('aeon_ztp.bin.ubuntu_bootstrap.json.loads')
 @mock.patch('aeon_ztp.bin.ubuntu_bootstrap.subprocess.Popen')
-def test_get_required_os(mock_subprocess, device):
-    expected_os_sel_output = '{"output": "os-select test output"}'
-    mock_subprocess.return_value.communicate.return_value = (expected_os_sel_output, 'stderr')
-    local_cb = ubuntu_bootstrap.UbuntuBootstrap(args['server'], cli_args())
-    conf_fpath = '{topdir}/etc/profiles/default/ubuntu/os-selector.cfg'.format(topdir=cli_args().topdir)
-    cmd = "{topdir}/bin/aztp_os_selector.py -j '{dev_json}' -c {config}".format(topdir=cli_args().topdir,
-                                                                                dev_json=json.dumps(device.facts),
-                                                                                config=conf_fpath)
-    os_sel_output = local_cb.get_required_os(device)
-    assert os_sel_output == json.loads(expected_os_sel_output)
-    mock_subprocess.assert_called_with(cmd, shell=True, stdout=-1)
-
-
-@mock.patch('aeon_ztp.bin.ubuntu_bootstrap.os.path.exists', return_value=False)
-@mock.patch('aeon_ztp.bin.ubuntu_bootstrap.UbuntuBootstrap.exit_results', side_effect=SystemExit)
-def test_install_os_image_missing(mock_exit_results, mock_os, ub_obj, device):
-    image_name = 'test_image'
-    image_fpath = os.path.join(ub_obj.cli_args.topdir, 'vendor_images', ub_obj.os_name, image_name)
-    errmsg = 'image file does not exist: {}'.format(image_fpath)
+def test_check_os_install_json_exception(mock_subprocess, mock_json, mock_exit, ub_obj, device):
+    ub_obj.dev = device
+    test_stdout = 'test stdout'
+    exception_msg = 'test exception message'
+    errmsg = 'Unable to load os-select output as JSON: {}\n {}'.format(test_stdout, exception_msg)
+    mock_json.side_effect = Exception(exception_msg)
+    mock_subprocess.return_value.communicate.return_value = (test_stdout, 'test stderr')
     with pytest.raises(SystemExit):
-        ub_obj.install_os(device, image_name)
-    mock_exit_results.assert_called_with(dev=device,
-                                         results={'ok': False,
-                                                  'error_type': 'install',
-                                                  'message': errmsg}
-                                         )
-
-
-@mock.patch('aeon.cumulus.device.Connector')
-@mock.patch('aeon_ztp.bin.ubuntu_bootstrap.os.path.exists', return_value=True)
-@mock.patch('aeon_ztp.bin.ubuntu_bootstrap.UbuntuBootstrap.exit_results', side_effect=SystemExit)
-def test_install_os_image_not_all_good(mock_exit_results, mock_os, mock_con, device, cli_args):
-    image_name = 'test_image'
-    errmsg = 'error running command'
-    device.api.execute.return_value = (False, errmsg)
-    local_cb = ubuntu_bootstrap.UbuntuBootstrap(args['server'], cli_args)
-
-    cmd = 'sudo /usr/cumulus/bin/cl-img-install -sf http://{server}/images/{os_name}/{image_name}'.format(
-          server=local_cb.cli_args.server, os_name=local_cb.os_name, image_name=image_name)
-
-    with pytest.raises(SystemExit):
-        local_cb.install_os(device, image_name)
-    mock_exit_results.assert_called_with(dev=device,
-                                         results={
-                                             'ok': False,
-                                             'error_type': 'install',
-                                             'message': 'Unable to run command: {cmd}. '
-                                             'Error message: {errmsg}'.format(cmd=cmd, errmsg=errmsg)
-                                         })
-
-
-@mock.patch('aeon_ztp.bin.ubuntu_bootstrap.UbuntuBootstrap.wait_for_device')
-@mock.patch('aeon_ztp.bin.ubuntu_bootstrap.time')
-@mock.patch('aeon.cumulus.device.Connector')
-@mock.patch('aeon_ztp.bin.ubuntu_bootstrap.os.path.exists', return_value=True)
-def test_install_os_image(mock_os, mock_con, mock_time, mock_wait_device, device, cli_args):
-    image_name = 'test_image'
-    results = 'test result message'
-    device.api.execute.return_value = (True, results)
-    local_cb = ubuntu_bootstrap.UbuntuBootstrap(args['server'], cli_args)
-
-    cmd = 'sudo /usr/cumulus/bin/cl-img-install -sf http://{server}/images/{os_name}/{image_name}'.format(
-          server=local_cb.cli_args.server, os_name=local_cb.os_name, image_name=image_name)
-    method_calls = [mock.call.execute([cmd])]
-
-    local_cb.install_os(device, image_name)
-    assert device.api.method_calls == method_calls
-
-
-@mock.patch('aeon_ztp.bin.ubuntu_bootstrap.time')
-@mock.patch('aeon_ztp.bin.ubuntu_bootstrap.UbuntuBootstrap.install_os')
-@mock.patch('aeon_ztp.bin.ubuntu_bootstrap.UbuntuBootstrap.get_required_os')
-@mock.patch('aeon_ztp.bin.ubuntu_bootstrap.UbuntuBootstrap.wait_for_device')
-def test_ensure_os_version(mock_wait_for_device, mock_get_os, mock_install_os, mock_time, device, cli_args):
-    results = 'test result message'
-    device.api.execute.return_value = (True, results)
-    ver_required = '3.1.2'
-    image_name = 'image_file_name'
-
-    def mock_get_os_function(dev):
-        diff = semver.compare(dev.facts['os_version'], ver_required)
-        # Check if upgrade is required
-        if diff < 0:
-            # upgrade required
-            return {'image': image_name}
-        else:
-            # upgrade not required
-            return {'image': None}
-    mock_get_os.side_effect = mock_get_os_function
-    local_cb = ubuntu_bootstrap.UbuntuBootstrap(args['server'], cli_args)
-    local_cb.ensure_os_version(device)
-
-    # If upgrade was required, check that the correct calls were made
-    if mock_get_os_function(device)['image']:
-        assert mock_install_os.called_with(mock.call(device), image_name=image_name)
-
-        device.api.execute.assert_called_with(['sudo reboot'])
-        mock_wait_for_device.assert_called_with(countdown=local_cb.cli_args.reload_delay, poll_delay=10)
-
-    else:
-        assert not device.api.execute.called
-        assert not mock_install_os.called
+        ub_obj.check_os_install_and_finally()
+    mock_exit.assert_called_with(
+        exit_error=errmsg,
+        results={
+            'ok': False,
+            'error_type': 'install',
+            'message': errmsg
+        }
+    )
 
 
 @mock.patch('aeon_ztp.bin.ubuntu_bootstrap.UbuntuBootstrap.exit_results', side_effect=SystemExit)
@@ -378,17 +269,19 @@ def test_main_invalid_topdir(mock_cli_parse, mock_time, mock_isdir, mock_exit, c
                                   'message': exc})
 
 
-@mock.patch('aeon_ztp.bin.ubuntu_bootstrap.UbuntuBootstrap.ensure_os_version')
+@mock.patch('aeon_ztp.bin.ubuntu_bootstrap.UbuntuBootstrap')
+@mock.patch('aeon_ztp.bin.ubuntu_bootstrap.UbuntuBootstrap.check_os_install_and_finally')
 @mock.patch('aeon_ztp.bin.ubuntu_bootstrap.UbuntuBootstrap.wait_for_device')
 @mock.patch('aeon_ztp.bin.ubuntu_bootstrap.UbuntuBootstrap.exit_results', side_effect=SystemExit)
 @mock.patch('aeon_ztp.bin.ubuntu_bootstrap.os.path.isdir', return_value=True)
 @mock.patch('aeon_ztp.bin.ubuntu_bootstrap.time')
 @mock.patch('aeon_ztp.bin.ubuntu_bootstrap.cli_parse')
-def test_main(mock_cli_parse, mock_time, mock_isdir, mock_exit, mock_wait, mock_ensure_os, cli_args, device):
+def test_main(mock_cli_parse, mock_time, mock_isdir, mock_exit, mock_wait, mock_check_os_and_finally, mock_ub, ub_obj, cli_args, device):
     mock_cli_parse.return_value = cli_args
     mock_wait.return_value = device
+    ub_obj.dev = device
+    mock_ub.return_value = ub_obj
     with pytest.raises(SystemExit):
         ubuntu_bootstrap.main()
-    mock_exit.assert_called_with({'ok': True},
-                                 dev=device)
+    mock_exit.assert_called_with({'ok': True})
     mock_wait.assert_called_with(countdown=cli_args.reload_delay, poll_delay=10)

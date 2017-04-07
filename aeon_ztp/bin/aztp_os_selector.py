@@ -158,14 +158,16 @@ def main():
         cfg_data = load_cfg(cli_args.config_file)
         try:
             dev_data = json.loads(cli_args.json)
+            hw_match = match_hw_model(dev_data, cfg_data)
+            sw_match = match_os_version(dev_data, hw_match.data)
+            finally_script = hw_match.data.get('finally')
+
         except ValueError:
             exit_results({
                 'ok': False,
                 'error_type': 'args',
                 'error_message': 'JSON argument formatted incorrectly.'
             })
-        hw_match = match_hw_model(dev_data, cfg_data)
-        sw_match = match_os_version(dev_data, hw_match.data)
 
     except ArgumentParser.ParserError as exc:
         exit_results({
@@ -197,7 +199,8 @@ def main():
 
     exit_results({
         'ok': True,
-        'image': sw_match
+        'image_name': sw_match,
+        'finally': finally_script
     })
 
 

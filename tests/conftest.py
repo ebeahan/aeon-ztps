@@ -69,6 +69,8 @@ def device(session, device_data=None):
                    'os_version': '1.0.0a',
                    'serial_number': '1234567890',
                    'state': 'excellent',
+                   'finally_script': 'finally',
+                   'image_name': '1.0.1b',
                    'facts': '{"mac_address": "00112233445566"}'
                    }
     device = models.Device(**device_data)

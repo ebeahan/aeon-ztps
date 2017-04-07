@@ -15,9 +15,6 @@ from aeon.exceptions import ProbeError, UnauthorizedError
 from aeon.exceptions import ConfigError, CommandError
 from retrying import retry
 
-_OS_NAME = 'eos'
-_PROGNAME = '%s-bootstrap' % _OS_NAME
-_PROGVER = '0.0.1'
 
 # ##### -----------------------------------------------------------------------
 # #####
@@ -28,7 +25,7 @@ _PROGVER = '0.0.1'
 
 def cli_parse(cmdargs=None):
     psr = argparse.ArgumentParser(
-        prog=_PROGNAME,
+        prog='eos_bootstrap',
         description="Aeon ZTP bootstrapper for Arista EOS",
         add_help=True)
 
@@ -55,7 +52,6 @@ def cli_parse(cmdargs=None):
 
     psr.add_argument(
         '--init-delay',
-        dest='init_delay',
         type=int, default=60,
         help="amount of time/s to wait before starting the bootstrap process")
 
@@ -69,35 +65,40 @@ def cli_parse(cmdargs=None):
         '--user', help='login user-name')
 
     group.add_argument(
-        '--env_user', '-U',
+        '--env-user', '-U',
         help='Username environment variable')
 
     group.add_argument(
-        '--env_passwd', '-P',
+        '--env-passwd', '-P',
         required=True,
         help='Passwd environment variable')
 
     return psr.parse_args(cmdargs)
 
 
-class EosBootstrap:
+class EosBootstrap(object):
     def __init__(self, server, cli_args):
         self.server = server
         self.cli_args = cli_args
-        self.log = self.setup_logging(logname=_PROGNAME,
-                                      logfile=self.cli_args.logfile,
-                                      target=self.cli_args.target)
+        self.target = self.cli_args.target
+        self.os_name = 'eos'
+        self.progname = '%s-bootstrap' % self.os_name
+        self.logfile = self.cli_args.logfile
+        self.log = self.setup_logging(logname=self.progname)
+        self.user, self.passwd = self.get_user_and_passwd()
+        self.image_name = None
+        self.finally_script = None
+        self.dev = None
 
-    @staticmethod
-    def setup_logging(logname, logfile, target):
+    def setup_logging(self, logname):
         log = logging.getLogger(name=logname)
         log.setLevel(logging.INFO)
 
         fmt = logging.Formatter(
             '%(asctime)s:%(levelname)s:{target}:%(message)s'
-            .format(target=target))
+            .format(target=self.target))
 
-        handler = logging.FileHandler(logfile) if logfile else logging.StreamHandler(sys.stdout)
+        handler = logging.FileHandler(self.logfile) if self.logfile else logging.StreamHandler(sys.stdout)
         handler.setFormatter(fmt)
         log.addHandler(handler)
 
@@ -109,26 +110,31 @@ class EosBootstrap:
     # #####
     # ##### -----------------------------------------------------------------------
 
-    def post_device_facts(self, dev):
-        requests.put(
-            url='http://%s/api/devices/facts' % self.server,
-            json=dict(
-                ip_addr=dev.target,
-                serial_number=dev.facts['serial_number'],
-                hw_model=dev.facts['hw_model'],
-                os_version=dev.facts['os_version'],
-                os_name=_OS_NAME,
-                facts=json.dumps(dev.facts)))
+    def post_device_facts(self):
+        facts = self.dev.facts
+        facts['ip_addr'] = self.dev.target
+        facts = json.dumps(facts)
+        dev_data = dict(
+            ip_addr=self.dev.target,
+            serial_number=self.dev.facts['serial_number'],
+            hw_model=self.dev.facts['hw_model'],
+            os_version=self.dev.facts['os_version'],
+            os_name=self.os_name,
+            facts=facts)
+        dev_data['image_name'] = self.image_name
+        dev_data['finally_script'] = self.finally_script
 
-    def post_device_status(self, dev=None, target=None, message=None, state=None):
-        if not (dev or target):
+        requests.put(url='http://%s/api/devices/facts' % self.server, json=dev_data)
+
+    def post_device_status(self, message=None, state=None):
+        if not (self.dev or self.target):
             self.log.error('Either dev or target is required to post device status. Message was: {}'.format(message))
             return
         requests.put(
             url='http://%s/api/devices/status' % self.server,
             json=dict(
-                os_name=_OS_NAME,
-                ip_addr=target or dev.target,
+                os_name=self.os_name,
+                ip_addr=self.target or self.dev.target,
                 state=state, message=message))
 
     # ##### -----------------------------------------------------------------------
@@ -137,23 +143,22 @@ class EosBootstrap:
     # #####
     # ##### -----------------------------------------------------------------------
 
-    def exit_results(self, results, exit_error=None, dev=None, target=None):
+    def exit_results(self, results, exit_error=None):
         if results['ok']:
-            self.post_device_status(dev=dev, target=target, state='DONE', message='bootstrap completed OK')
+            self.post_device_status(message='bootstrap completed OK', state='DONE')
             sys.exit(0)
         else:
-            self.post_device_status(dev=dev, target=target, state='ERROR', message=results['message'])
+            self.post_device_status(message=results['message'], state='FAILED')
             sys.exit(exit_error or 1)
 
-    def wait_for_device(self, countdown, poll_delay):
-        target = self.cli_args.target
+    def get_user_and_passwd(self):
         user = self.cli_args.user or os.getenv(self.cli_args.env_user)
         passwd = os.getenv(self.cli_args.env_passwd)
 
         if not user:
             errmsg = "login user-name missing"
             self.log.error(errmsg)
-            self.exit_results(target=target, results=dict(
+            self.exit_results(results=dict(
                 ok=False,
                 error_type='login',
                 message=errmsg))
@@ -161,10 +166,14 @@ class EosBootstrap:
         if not passwd:
             errmsg = "login user-password missing"
             self.log.error(errmsg)
-            self.exit_results(target=target, results=dict(
+            self.exit_results(results=dict(
                 ok=False,
                 error_type='login',
                 message=errmsg))
+
+        return user, passwd
+
+    def wait_for_device(self, countdown, poll_delay):
 
         dev = None
 
@@ -173,11 +182,11 @@ class EosBootstrap:
 
         while not dev:
             msg = 'reload-countdown at: {} seconds'.format(countdown)
-            self.post_device_status(target=target, state='AWAIT-ONLINE', message=msg)
+            self.post_device_status(message=msg, state='AWAIT-ONLINE')
             self.log.info(msg)
 
             try:
-                dev = Device(target, user=user, passwd=passwd, timeout=poll_delay)
+                dev = Device(self.target, user=self.user, passwd=self.passwd, timeout=poll_delay)
 
             except CommandError:
                 # this means that the device is probe-able, but unable to use the API
@@ -185,31 +194,31 @@ class EosBootstrap:
                 # 'manually' invoke the poll delay.
                 countdown -= poll_delay
                 if countdown <= 0:
-                    errmsg = 'Failed to access %s device API within reload countdown' % target
-                    self.exit_results(target=target, exit_error=errmsg, results=dict(
+                    errmsg = 'Failed to access %s device API within reload countdown' % self.target
+                    self.exit_results(results=dict(
                         ok=False,
                         error_type='login',
-                        message=errmsg))
+                        message=errmsg), exit_error=errmsg)
                 time.sleep(poll_delay)
 
             except ProbeError:
                 countdown -= poll_delay
                 if countdown <= 0:
-                    errmsg = 'Failed to probe target %s within reload countdown' % target
-                    self.exit_results(target=target, exit_error=errmsg, results=dict(
+                    errmsg = 'Failed to probe target %s within reload countdown' % self.target
+                    self.exit_results(results=dict(
                         ok=False,
                         error_type='login',
-                        message=errmsg))
+                        message=errmsg), exit_error=errmsg)
 
             except UnauthorizedError:
                 errmsg = 'Unauthorized - check user/password'
-                self.exit_results(target=target, exit_error=errmsg, results=dict(
+                self.exit_results(results=dict(
                     ok=False,
                     error_type='login',
-                    message=errmsg))
+                    message=errmsg), exit_error=errmsg)
 
-        self.post_device_facts(dev)
-        return dev
+        self.dev = dev
+        self.post_device_facts()
 
     # ##### -----------------------------------------------------------------------
     # #####
@@ -217,23 +226,21 @@ class EosBootstrap:
     # #####
     # ##### -----------------------------------------------------------------------
 
-    def do_push_config(self, dev):
+    def do_push_config(self):
         topdir = self.cli_args.topdir
-        config_dir = os.path.join(topdir, 'etc', 'configs', _OS_NAME)
+        config_dir = os.path.join(topdir, 'etc', 'configs', self.os_name)
         all_fpath = os.path.join(config_dir, 'all.conf')
-        model_fpath = os.path.join(config_dir, dev.facts['hw_model'] + '.conf')
+        model_fpath = os.path.join(config_dir, self.dev.facts['hw_model'] + '.conf')
         changed = False
 
-        self.post_device_status(
-            dev=dev, state='CONFIG',
-            message='applying general config from %s' % config_dir)
+        self.post_device_status(message='applying general config from %s' % config_dir, state='CONFIG')
 
         try:
             if os.path.isfile(all_fpath):
                 self.log.info('reading from: {}'.format(all_fpath))
                 conf = open(all_fpath).read().split('\n')
                 self.log.info('pushing all config to device')
-                dev.api.configure(conf)
+                self.dev.api.configure(conf)
                 changed = True
             else:
                 self.log.info('no all.conf file found')
@@ -242,7 +249,7 @@ class EosBootstrap:
                 self.log.info('reading model config from: {}'.format(model_fpath))
                 conf = open(model_fpath).read().split('\n')
                 self.log.info('pushing model config to device')
-                dev.api.configure(conf)
+                self.dev.api.configure(conf)
                 changed = True
             else:
                 self.log.info('no model config file found: {}'.format(model_fpath))
@@ -256,12 +263,16 @@ class EosBootstrap:
                 message=errmsg))
 
         if changed is True:
+            self.post_device_status(message='Waiting for eAPI to become available.', state='CONFIG')
+
             # retry for 5min (5000ms * 60) every 5000ms
             # because eAPI takes time to activate during boot.
+
             @retry(wait_fixed=5000, stop_max_attempt_number=60)
             def finalize():
                 self.log.info('Saving startup-config... (This will retry until eAPI is available.)')
-                dev.api.execute(['enable', 'copy running-config startup-config'])
+                self.dev.api.execute(['enable', 'copy running-config startup-config'])
+                self.post_device_status(message='Config written to device.', state='CONFIG')
                 self.log.info('config completed OK.')
             finalize()
 
@@ -286,13 +297,13 @@ class EosBootstrap:
 
         return md5sum
 
-    def check_os_install(self, dev):
-        profile_dir = os.path.join(self.cli_args.topdir, 'etc', 'profiles', 'default', _OS_NAME)
+    def check_os_install_and_finally(self):
+        profile_dir = os.path.join(self.cli_args.topdir, 'etc', 'profiles', self.os_name)
         conf_fpath = os.path.join(profile_dir, 'os-selector.cfg')
 
         cmd = "{topdir}/bin/aztp_os_selector.py -j '{dev_json}' -c {config}".format(
             topdir=self.cli_args.topdir,
-            dev_json=json.dumps(dev.facts),
+            dev_json=json.dumps(self.dev.facts),
             config=conf_fpath)
 
         self.log.info('os-select: [%s]' % cmd)
@@ -305,82 +316,89 @@ class EosBootstrap:
 
         try:
             results = json.loads(_stdout)
+            image_name = results.get('image_name', None)
+            finally_script = results.get('finally', None)
+
+            self.image_name = image_name
+            self.finally_script = finally_script
+
+            self.post_device_facts()
+            return results
 
         except Exception as exc:
             errmsg = 'Unable to load os-select output as JSON: {}\n {}'.format(_stdout, str(exc))
-            self.exit_results(dev=dev, exit_error=errmsg, results=dict(
+            self.exit_results(results=dict(
                 ok=False,
-                error_type='config',
+                error_type='install',
+                message=errmsg
+            ), exit_error=errmsg)
+
+    def do_copy_file(self):
+        # -------------------------
+        # copy image file to device
+        # -------------------------
+
+        cmds = ['routing-context vrf {}'.format(self.dev.api.VRF_MGMT),
+                'copy http://{server}/images/{OS}/{filename} flash:'
+                .format(server=self.server, OS=self.os_name,
+                        filename=self.image_name)]
+
+        try:
+            self.dev.api.execute(cmds)
+            self.log.info('copy OS image file completed.')
+
+        except Exception as exc:
+            errmsg = "Unable to copy file to device: %s" % str(exc)
+            self.log.error(errmsg)
+            self.exit_results(results=dict(
+                ok=False,
+                error_type='install',
                 message=errmsg))
 
-        return results
+    def do_os_install(self):
 
-    def do_os_install(self, dev, image_name):
-
-        vendor_dir = os.path.join(self.cli_args.topdir, 'vendor_images', _OS_NAME)
-        image_fpath = os.path.join(vendor_dir, image_name)
+        vendor_dir = os.path.join(self.cli_args.topdir, 'vendor_images', self.os_name)
+        image_fpath = os.path.join(vendor_dir, self.image_name)
 
         if not os.path.isfile(image_fpath):
             errmsg = 'image file {} does not exist'.format(image_fpath)
-            self.exit_results(dev=dev, results=dict(
+            self.exit_results(results=dict(
                 ok=False,
                 error_type='install',
                 message=errmsg))
 
         md5sum = self.ensure_md5sum(filepath=image_fpath)
-        msg = 'installing OS image [{}] ... please be patient'.format(image_name)
+        msg = 'installing OS image [{}] ... please be patient'.format(self.image_name)
         self.log.info(msg)
-        self.post_device_status(dev=dev, state='OS-INSTALL', message=msg)
+        self.post_device_status(message=msg, state='OS-INSTALL')
 
         # --------------------------------
         # check for file already on device
         # --------------------------------
 
         try:
-            dev.api.execute('dir flash:%s' % image_name)
+            self.dev.api.execute('dir flash:%s' % self.image_name)
             self.log.info('file already exists on device, skipping copy.')
             has_file = True
         except CommandError:
             has_file = False
 
-        def do_copy_file():
-            # -------------------------
-            # copy image file to device
-            # -------------------------
-
-            cmds = ['routing-context vrf {}'.format(dev.api.VRF_MGMT),
-                    'copy http://{server}/images/{OS}/{filename} flash:'
-                    .format(server=self.server, OS=_OS_NAME,
-                            filename=image_name)]
-
-            try:
-                dev.api.execute(cmds)
-                self.log.info('copy OS image file completed.')
-
-            except Exception as exc:
-                errmsg = "Unable to copy file to device: %s" % str(exc)
-                self.log.error(errmsg)
-                self.exit_results(dev=dev, results=dict(
-                    ok=False,
-                    error_type='install',
-                    message=errmsg))
-
         if not has_file:
-            do_copy_file()
+            self.do_copy_file()
 
         # -------------------
         # verify MD5 checksum
         # -------------------
 
-        got_md5 = dev.api.execute('verify /md5 flash:{}'.format(image_name))
+        got_md5 = self.dev.api.execute('verify /md5 flash:{}'.format(self.image_name))
         has_md5 = got_md5['messages'][0].split('=')[-1].strip()
         if has_md5 != md5sum:
             errmsg = 'image file {filename} MD5 mismatch has={has} should={should}' \
-                .format(filename=image_name,
+                .format(filename=self.image_name,
                         has=has_md5, should=md5sum)
 
             self.log.error(errmsg)
-            self.exit_results(dev=dev, results=dict(
+            self.exit_results(results=dict(
                 ok=False,
                 error_type='install',
                 message=errmsg))
@@ -391,28 +409,32 @@ class EosBootstrap:
         # configure to use this version for system boot
         # ---------------------------------------------
 
-        dev.api.configure(['boot system flash:%s' % image_name])
-        dev.api.execute('copy running-config status-config')
+        self.dev.api.configure(['boot system flash:%s' % self.image_name])
+        self.dev.api.execute('copy running-config startup-config')
 
-    def do_ensure_os_version(self, dev):
-        os_install = self.check_os_install(dev)
-        image_name = os_install['image']
-        if not image_name:
+    def do_ensure_os_version(self):
+        self.check_os_install_and_finally()
+        if not self.image_name:
             self.log.info('no software install required')
-            return dev
+            return self.dev
 
-        self.log.info('software image install required: %s' % image_name)
-        self.do_os_install(dev, image_name=image_name)
+        self.log.info('software image install required: %s' % self.image_name)
+        self.do_os_install()
 
         self.log.info('software install OK')
         self.log.info('rebooting device ... please be patient')
 
-        self.post_device_status(
-            dev, state='REBOOTING',
-            message='OS install %s completed, now rebooting'
-                    ' ... please be patient' % image_name)
+        self.post_device_status(message='OS install %s completed, now rebooting'
+                                        ' ... please be patient' % self.image_name, state='REBOOTING')
 
-        dev.api.execute('reload now')
+        try:
+            self.dev.api.execute('reload now')
+        except CommandError as e:
+            if 'unable to connect to eAPI' in e.exc.message:
+                pass
+            else:
+                raise
+
         time.sleep(self.cli_args.init_delay)
         return self.wait_for_device(countdown=self.cli_args.reload_delay, poll_delay=10)
 
@@ -436,23 +458,21 @@ def main():
     eboot.log.info("starting bootstrap process in {} seconds"
                .format(cli_args.init_delay))
 
-    eboot.post_device_status(
-        target=cli_args.target,
-        state='START',
-        message='bootstrap started, waiting for device access')
+    eboot.post_device_status(message='bootstrap started, waiting for device access', state='START')
 
     time.sleep(cli_args.init_delay)
-    dev = eboot.wait_for_device(countdown=cli_args.reload_delay, poll_delay=10)
+    eboot.wait_for_device(countdown=cli_args.reload_delay, poll_delay=10)
 
     eboot.log.info("proceeding with bootstrap")
 
-    eboot.do_push_config(dev)
-    if dev.facts['virtual']:
+    eboot.do_push_config()
+    if eboot.dev.facts['virtual']:
         eboot.log.info('Virtual device. No OS upgrade necessary.')
+        eboot.check_os_install_and_finally()
     else:
-        eboot.do_ensure_os_version(dev)
+        eboot.do_ensure_os_version()
     eboot.log.info("bootstrap process finished")
-    eboot.exit_results(dict(ok=True), dev=dev)
+    eboot.exit_results(dict(ok=True))
 
 
 if '__main__' == __name__:

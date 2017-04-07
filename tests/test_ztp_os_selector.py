@@ -35,7 +35,7 @@ def test_load_yaml_exception(mock_yaml):
 @patch('aeon_ztp.ztp_os_selector.load_yaml')
 def test_get(mock_load_yaml):
     vendor = 'test_vendor'
-    filename = os.path.join(topdir, 'etc/profiles/default/{vendor}/os-selector.cfg'.format(vendor=vendor))
+    filename = os.path.join(topdir, 'etc/profiles/{vendor}/os-selector.cfg'.format(vendor=vendor))
     ztp_os_selector.get(vendor)
     mock_load_yaml.assert_called_with(filename)
 
@@ -57,7 +57,7 @@ def test_vendor(mock_get, mock_os_access):
     path = os.path.join(topdir, 'vendor_images/{vendor}'.format(vendor=vendor))
     v = ztp_os_selector.Vendor(vendor)
     assert v.config_filename == os.path.join(topdir,
-                                             'etc/profiles/default/{vendor}/os-selector.cfg'.format(vendor=vendor))
+                                             'etc/profiles/{vendor}/os-selector.cfg'.format(vendor=vendor))
     assert v.path == path
     assert v.image == os.path.join(path, default_image)
     assert v.check_firmware

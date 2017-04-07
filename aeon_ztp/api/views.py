@@ -247,6 +247,9 @@ def _put_device_facts():
         rec.os_version = rqst_data.get('os_version')
         rec.facts = rqst_data.get('facts')
         rec.updated_at = time_now()
+        rec.image_name = rqst_data.get('image_name')
+        rec.finally_script = rqst_data.get('finally_script')
+
         db.commit()
 
     except NoResultFound:

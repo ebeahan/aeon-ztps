@@ -165,8 +165,7 @@ Group-Policy ZTP
 ----------------
 :emphasis:`Stages: Remote-Bootstrap, Finally-Provision`
 
-The directory :literal:`/opt/aeonztps/etc/profiles` contains a subdirectory for each policy group.  At present,
-there is only the :literal:`default` policy-group.  The purpose of the group-policy is to instruct the Aeon-ZTP
+The directory :literal:`/opt/aeonztps/etc/profiles` contains a subdirectory for each policy group.  The purpose of the group-policy is to instruct the Aeon-ZTP
 framework what to do on a per-NOS, per-model basis.
 
 There are two basic instructions you can provide the framework:
@@ -179,9 +178,9 @@ Each group-policy contains a subdirectory for each NOS supported.  The following
 
 .. code:: bash
 
-    admin@aeon-ztps:/opt/aeonztps/etc/profiles$ tree
+    admin@aeon-ztps:/opt/aeonztps/etc$ tree
     .
-    └── default
+    └── profiles
         ├── cumulus
         │   ├── finally -> ../../../../bin/finally/aztp-finally-aos-cumulus.sh
         │   └── os-selector.cfg
@@ -192,8 +191,9 @@ Each group-policy contains a subdirectory for each NOS supported.  The following
             ├── finally -> ../../../../bin/finally/aztp-finally-aos-nxos.sh
             └── os-selector.cfg
 
-The file :literal:`os-selector.cfg` allows you to identify which version of NOS should be installed.
-The following is an example for :literal:`/opt/aeonztps/etc/profiles/default/eos`:
+The file :literal:`os-selector.cfg` allows you to identify which version of NOS should be installed,
+and which finally script should be run.
+The following is an example for :literal:`/opt/aeonztps/etc/profiles/eos`:
 
 .. code::  yaml
 
@@ -203,11 +203,15 @@ The following is an example for :literal:`/opt/aeonztps/etc/profiles/default/eos
     default:
         exact_match: 4.15.1F
         image: EOS-4.15.1F.swi
+        finally: finally
 
 
 This :literal:`os-selector.cfg` file instructs the Aeon-ZTP to check the current OS version and match exactly to
 "4.15.1F". If the device does not have this version, then Aeon-ZTPS should install the image "EOS-4.15.1F.swi".
 This file would be located in the :literal:`/opt/aeonztps/vendor_images/eos` directory.
+
+The finally script named "finally" would be run. Finally scripts can be created and placed into the relevant
+vendor directory.
 
 Regular expressions can also be used to match the NOS version. The following example would not perform a NOS
 upgrade if either version 3.1.1 or 3.1.2 was installed on the device:
@@ -238,6 +242,7 @@ The following facts are supported to be used as a match criteria:
    - mac_address
    - serial_number
    - hw_model
+   - ip_addr
 
 Here is an example os-selector.cfg file:
 
@@ -247,6 +252,7 @@ Here is an example os-selector.cfg file:
     default:
         exact_match: 3.1.2
         image: CumulusLinux-3.1.2-amd64.bin
+        finally: finally
 
     # Group name is arbitrary and can be things like
     # 'rack-a', 'vendor-b', etc.
@@ -269,6 +275,9 @@ Here is an example os-selector.cfg file:
         # If a fact match is made, and the NOS regex
         # does not match, this OS is installed.
         image: CumulusLinux-3.2.1-amd64.bin
+
+        # Run finally script that is required for Accton_Switches group
+        finally: accton_finally
 
     # This group will get Cumulus 2.5.7 installed
     Cumulus_2_Switches:

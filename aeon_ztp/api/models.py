@@ -20,6 +20,8 @@ class Device(db.Model):
     created_at = db.Column(db.String(64), nullable=False)
     updated_at = db.Column(db.String(64), nullable=False)
     facts = db.Column(db.String(2000))
+    finally_script = db.Column(db.String(256))
+    image_name = db.Column(db.String(256))
 
 
 class DeviceSchema(ma.ModelSchema):

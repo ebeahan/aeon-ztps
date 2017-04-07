@@ -85,11 +85,6 @@
 - name: Move aeon-ztps package install file to packages directory
   shell: "mv {{ search_results.files[0].path }} {{ Install_dir }}/packages/"
 
-- name: Install aeon-venos
-  pip:
-    name: aeon-venos
-  when: not packer
-
 - name: Build docs using Sphinx
   shell: make html
   args:

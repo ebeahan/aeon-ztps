@@ -8,6 +8,7 @@ import logging
 import os
 import socket
 import requests
+import json
 
 from celery import Celery
 
@@ -52,11 +53,15 @@ def get_device_state(server, target):
 def get_device_facts(server, target):
     r = requests.get(url='http://{server}/api/devices?ip_addr={ip_addr}'
                      .format(server=server, ip_addr=target))
-    try:
-        facts = r.json()['items'][0]['facts']
-    except KeyError:
-        facts = None
-    return facts
+
+    facts = r.json().get('items')[0]
+    if facts and 'facts' in facts:
+        facts_column = json.loads(facts.pop('facts'))
+        facts.update(facts_column)
+
+        return facts
+    else:
+        return facts
 
 
 def setup_logging(logname, logfile, target):
@@ -70,15 +75,21 @@ def setup_logging(logname, logfile, target):
     return log
 
 
-def do_finalize(server, os_name, target, log):
-    profile_dir = os.path.join(_AEON_DIR, 'etc', 'profiles', 'default', os_name)
-    finalizer = os.path.join(profile_dir, 'finally')
+def do_finalize(server, os_name, target, log, finally_script=None):
+    profile_dir = os.path.join(_AEON_DIR, 'etc', 'profiles', os_name)
+    os_sel = os.path.join(profile_dir, 'os-selector.cfg')
+    if not finally_script:
+        log.info(
+            'Skipping finally script: No finally script specified for {target} in {os_sel}.'.format(target=target,
+                                                                                                    os_sel=os_sel))
+        return 0, None
+    finalizer = os.path.join(profile_dir, finally_script)
 
     if not os.path.isfile(finalizer):
-        log.info('no user provided finally script')
-        return 0
+        log.info('no user provided finally script found at: "{}"'.format(profile_dir))
+        return 0, None
 
-    json_facts = get_device_facts(server, target)
+    json_facts = json.dumps(get_device_facts(server, target))
 
     cmd_args = [
         finalizer,
@@ -188,11 +199,15 @@ def ztp_bootstrapper(os_name, target):
                                state='ERROR', message='Error running bootstrapper: {}'.format(_stderr))
             return rc
 
-        rc, _stderr = do_finalize(server=server, os_name=os_name, target=target, log=log)
-        if 0 != rc:
+        facts = get_device_facts(server, target)
+        finally_script = facts.get('finally_script', None)
+        rc, _stderr = do_finalize(server=server, os_name=os_name, target=target, log=log, finally_script=finally_script)
+        if rc != 0:
             post_device_status(server=server,
-                               os_name=os_name, target=target,
-                               state='ERROR', message='Error running finally script: {}'.format(_stderr))
+                               os_name=os_name,
+                               target=target,
+                               state='ERROR',
+                               message='Error running finally script: {}'.format(_stderr))
             return rc
 
         post_device_status(server=server,
@@ -206,16 +221,17 @@ def ztp_bootstrapper(os_name, target):
 @celery.task
 def ztp_finalizer(os_name, target):
     server = "{}:{}".format(get_server_ipaddr(target), _AEON_PORT)
+    facts = get_device_facts(server, target)
+    finally_script = facts.get('finally_script', None)
 
-    log = setup_logging(
-        logname='aeon-finalizer', logfile=_AEON_LOGFILE,
-        target=target)
+    log = setup_logging(logname='aeon-finalizer', logfile=_AEON_LOGFILE, target=target)
+
     try:
-        rc, _stderr = do_finalize(server=server, os_name=os_name, target=target, log=log)
+        rc, _stderr = do_finalize(server=server, os_name=os_name, target=target, log=log, finally_script=finally_script)
         if 0 != rc:
             post_device_status(server=server,
                                os_name=os_name, target=target,
                                state='ERROR', message='Error running finally script: {}'.format(_stderr))
-            return rc
+            return rc, _stderr
     finally:
         logging.shutdown()

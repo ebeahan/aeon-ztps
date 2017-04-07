@@ -60,8 +60,8 @@ def cli_args():
                                      '--reload-delay', args['reload_delay'],
                                      '--init-delay', args['init_delay'],
                                      '--user', args['user'],
-                                     '--env_user', args['env_user'],
-                                     '--env_passwd', args['env_passwd']])
+                                     '--env-user', args['env_user'],
+                                     '--env-passwd', args['env_passwd']])
     return parse
 
 
@@ -78,6 +78,7 @@ def no_requests(monkeypatch):
 def device(mock_con, request):
     dev = Device(args['target'], no_probe=True, no_gather_facts=True)
     dev.facts = request.param
+    print dev
     return dev
 
 
@@ -100,14 +101,17 @@ def test_eos_bootstrap(cli_args, eb_obj):
 
 @patch('aeon_ztp.bin.eos_bootstrap.requests')
 def test_post_device_facts(mock_requests, device, eb_obj):
-    eb_obj.post_device_facts(device)
+    eb_obj.dev = device
+    eb_obj.post_device_facts()
     mock_requests.put.assert_called_with(json={
         'os_version': device.facts['os_version'],
-        'os_name': eos_bootstrap._OS_NAME,
+        'os_name': device.facts['os'],
         'ip_addr': device.target,
         'hw_model': device.facts['hw_model'],
         'serial_number': device.facts['serial_number'],
-        'facts': json.dumps(device.facts)
+        'facts': json.dumps(device.facts),
+        'image_name': None,
+        'finally_script': None
     },
         url='http://{}/api/devices/facts'.format(args['server']))
 
@@ -115,11 +119,10 @@ def test_post_device_facts(mock_requests, device, eb_obj):
 @patch('aeon_ztp.bin.eos_bootstrap.requests')
 def test_post_device_status(mock_requests, device, eb_obj):
     kw = {
-        'dev': device,
-        'target': device.target,
         'message': 'Test message',
         'state': 'DONE'
     }
+    eb_obj.dev = device
     eb_obj.post_device_status(**kw)
     mock_requests.put.assert_called_with(json={
         'message': kw['message'],
@@ -133,6 +136,7 @@ def test_post_device_status(mock_requests, device, eb_obj):
 def test_post_device_status_no_dev(eb_obj):
     eb_obj.log = MagicMock()
     message = 'test message'
+    eb_obj.target = None
     eb_obj.post_device_status(message=message)
     eb_obj.log.error.assert_called_with('Either dev or target is required to post device status. Message was: {}'.format(message))
 
@@ -141,15 +145,11 @@ def test_post_device_status_no_dev(eb_obj):
 def test_exit_results(mock_post, eb_obj, device):
     kw = {
         'results': {'ok': True},
-        'dev': device,
-        'target': device.target,
         'exit_error': None,
     }
     with pytest.raises(SystemExit) as e:
         eb_obj.exit_results(**kw)
     mock_post.assert_called_with(
-        dev=kw['dev'],
-        target=kw['target'],
         state='DONE',
         message='bootstrap completed OK'
     )
@@ -159,16 +159,12 @@ def test_exit_results(mock_post, eb_obj, device):
     kw = {
         'results': {'ok': False,
                     'message': 'Error Message'},
-        'dev': device,
-        'target': device.target,
         'exit_error': 1,
     }
     with pytest.raises(SystemExit) as e:
         eb_obj.exit_results(**kw)
     mock_post.assert_called_with(
-        dev=kw['dev'],
-        target=kw['target'],
-        state='ERROR',
+        state='FAILED',
         message=kw['results']['message']
     )
     assert e.value.code == 1
@@ -179,11 +175,9 @@ def test_wait_for_device_missing_username(mock_exit, cli_args, device):
     new_args = deepcopy(cli_args)
     new_args.user = None
     new_args.env_user = None
-    local_eb = eos_bootstrap.EosBootstrap(args['server'], new_args)
     with pytest.raises(SystemExit):
-        local_eb.wait_for_device(1, 2)
+        eos_bootstrap.EosBootstrap(args['server'], new_args)
     mock_exit.assert_called_with(
-        target=device.target,
         results={'ok': False,
                  'error_type': 'login',
                  'message': 'login user-name missing'}
@@ -194,11 +188,9 @@ def test_wait_for_device_missing_username(mock_exit, cli_args, device):
 def test_wait_for_device_missing_passwd(mock_exit, cli_args, device):
     new_args = deepcopy(cli_args)
     new_args.env_passwd = None
-    local_eb = eos_bootstrap.EosBootstrap(args['server'], new_args)
     with pytest.raises(SystemExit):
-        local_eb.wait_for_device(1, 2)
+        eos_bootstrap.EosBootstrap(args['server'], new_args)
     mock_exit.assert_called_with(
-        target=device.target,
         results={'ok': False,
                  'error_type': 'login',
                  'message': 'login user-password missing'}
@@ -215,7 +207,6 @@ def test_wait_for_device_command_error(mock_post_dev, mock_dev, mock_exit, mock_
         eb_obj.wait_for_device(2, 1)
     errmsg = 'Failed to access %s device API within reload countdown' % eb_obj.cli_args.target
     mock_exit.assert_called_with(
-        target=eb_obj.cli_args.target,
         exit_error=errmsg,
         results={'ok': False,
                  'error_type': 'login',
@@ -232,7 +223,6 @@ def test_wait_for_device_probe_error(mock_post_dev, mock_dev, mock_exit, eb_obj)
         eb_obj.wait_for_device(1, 2)
     errmsg = 'Failed to probe target %s within reload countdown' % eb_obj.cli_args.target
     mock_exit.assert_called_with(
-        target=eb_obj.cli_args.target,
         exit_error=errmsg,
         results={'ok': False,
                  'error_type': 'login',
@@ -249,7 +239,6 @@ def test_wait_for_device_unauthorized_error(mock_post_dev, mock_dev, mock_exit, 
         eb_obj.wait_for_device(1, 2)
     errmsg = 'Unauthorized - check user/password'
     mock_exit.assert_called_with(
-        target=eb_obj.cli_args.target,
         exit_error=errmsg,
         results={'ok': False,
                  'error_type': 'login',
@@ -262,20 +251,19 @@ def test_wait_for_device_unauthorized_error(mock_post_dev, mock_dev, mock_exit, 
 @patch('aeon_ztp.bin.eos_bootstrap.EosBootstrap.post_device_facts')
 def test_wait_for_device(mock_post_facts, mock_dev, eb_obj):
     poll_delay = 2
-    dev = eb_obj.wait_for_device(1, poll_delay)
+    eb_obj.wait_for_device(1, poll_delay)
     mock_dev.assert_called_with(
         eb_obj.cli_args.target,
         passwd=os.environ['ENV_PASS'],
         timeout=poll_delay,
         user=eb_obj.cli_args.user or os.getenv(eb_obj.cli_args.env_user)
     )
-    mock_post_facts.assert_called_with(
-        dev
-    )
+    mock_post_facts.assert_called()
 
 
 def test_do_push_config_no_conf_file(device, eb_obj):
-    eb_obj.do_push_config(device)
+    eb_obj.dev = device
+    eb_obj.do_push_config()
     assert not device.api.execute.called
 
 
@@ -283,11 +271,12 @@ def test_do_push_config_no_conf_file(device, eb_obj):
 @patch('aeon_ztp.bin.eos_bootstrap.os.path.isfile', return_value=True)
 @patch('aeon_ztp.bin.eos_bootstrap.EosBootstrap.exit_results', side_effect=SystemExit)
 def test_do_push_config_configerror(mock_exit, mock_isfile, mock_open, device, eb_obj):
+    eb_obj.dev = device
     all_config = 'transceiver qsfp default-mode 4x10G'
     errmsg = 'test config error'
     device.api.configure.side_effect = ConfigError(Exception(errmsg), all_config)
     with pytest.raises(SystemExit):
-        eb_obj.do_push_config(device)
+        eb_obj.do_push_config()
     mock_exit.assert_called_with(
         {
             'ok': False,
@@ -300,10 +289,11 @@ def test_do_push_config_configerror(mock_exit, mock_isfile, mock_open, device, e
 @patch('aeon_ztp.bin.eos_bootstrap.open')
 @patch('aeon_ztp.bin.eos_bootstrap.os.path.isfile', return_value=True)
 def test_do_push_config(mock_isfile, mock_open, device, eb_obj):
+    eb_obj.dev = device
     all_config = 'transceiver qsfp default-mode 4x10G\nmore config'
     model_config = 'model config\nmore model config'
     mock_open.return_value.read.return_value.split.side_effect = [all_config.split('\n'), model_config.split('\n')]
-    eb_obj.do_push_config(device)
+    eb_obj.do_push_config()
     device.api.configure.assert_has_calls([call(all_config.split('\n')), call(model_config.split('\n'))], any_order=False)
     device.api.execute.assert_called_with(['enable', 'copy running-config startup-config'])
 
@@ -332,19 +322,19 @@ def test_ensure_md5sum_md5_doesnt_exist(eb_obj):
 @patch('aeon_ztp.bin.eos_bootstrap.json.loads')
 @patch('aeon_ztp.bin.eos_bootstrap.subprocess.Popen')
 def test_check_os_install_json_exception(mock_subprocess, mock_json, mock_exit, eb_obj, device):
+    eb_obj.dev = device
     test_stdout = 'test stdout'
     exception_msg = 'test exception message'
     errmsg = 'Unable to load os-select output as JSON: {}\n {}'.format(test_stdout, exception_msg)
     mock_json.side_effect = Exception(exception_msg)
     mock_subprocess.return_value.communicate.return_value = (test_stdout, 'test stderr')
     with pytest.raises(SystemExit):
-        eb_obj.check_os_install(device)
+        eb_obj.check_os_install_and_finally()
     mock_exit.assert_called_with(
-        dev=device,
         exit_error=errmsg,
         results={
             'ok': False,
-            'error_type': 'config',
+            'error_type': 'install',
             'message': errmsg
         }
     )
@@ -353,12 +343,13 @@ def test_check_os_install_json_exception(mock_subprocess, mock_json, mock_exit, 
 @patch('aeon_ztp.bin.eos_bootstrap.EosBootstrap.exit_results', side_effect=SystemExit)
 @patch('aeon_ztp.bin.eos_bootstrap.subprocess.Popen')
 def test_check_os_install(mock_subprocess, mock_exit, eb_obj, device):
+    eb_obj.dev = device
     aztp_file = '{}/bin/aztp_os_selector.py'.format(eb_obj.cli_args.topdir)
-    conf_fpath = '{}/etc/profiles/default/eos/os-selector.cfg'.format(eb_obj.cli_args.topdir)
+    conf_fpath = '{}/etc/profiles/eos/os-selector.cfg'.format(eb_obj.cli_args.topdir)
     facts = json.dumps(device.facts)
     json_string = '{"test_key": "test_value"}'
     mock_subprocess.return_value.communicate.return_value = (json_string, 'test stderr')
-    results = eb_obj.check_os_install(device)
+    results = eb_obj.check_os_install_and_finally()
     mock_subprocess.assert_called_with('{aztp_file} -j \'{facts}\' -c {conf_fpath}'.format(aztp_file=aztp_file,
                                                                                            facts=facts,
                                                                                            conf_fpath=conf_fpath),
@@ -370,16 +361,19 @@ def test_check_os_install(mock_subprocess, mock_exit, eb_obj, device):
 @patch('aeon_ztp.bin.eos_bootstrap.os.path.isfile', return_value=False)
 def test_do_os_install_missing_image(mock_isfile, mock_exit, eb_obj, device):
     image_name = 'test_image'
+    eb_obj.dev = device
+    eb_obj.image_name = image_name
     image_fpath = os.path.join(eb_obj.cli_args.topdir, 'vendor_images', device.facts['os'], image_name)
     errmsg = 'image file {} does not exist'.format(image_fpath)
     with pytest.raises(SystemExit):
-        eb_obj.do_os_install(device, image_name)
-    mock_exit.assert_called_with(dev=device,
-                                 results={
-                                     'ok': False,
-                                     'error_type': 'install',
-                                     'message': errmsg
-                                 })
+        eb_obj.do_os_install()
+    mock_exit.assert_called_with(
+        results={
+            'ok': False,
+            'error_type': 'install',
+            'message': errmsg
+        }
+    )
 
 
 @patch('aeon_ztp.bin.eos_bootstrap.EosBootstrap.exit_results', side_effect=SystemExit)
@@ -388,15 +382,18 @@ def test_do_os_install_command_error(mock_isfile, mock_exit, eb_obj, device):
     eb_obj.ensure_md5sum = MagicMock
     device.api.execute.side_effect = [CommandError(Exception('some exception'), 'commands'), Exception('bad command')]
     image_name = 'test_image'
+    eb_obj.dev = device
+    eb_obj.image_name = image_name
     errmsg = "Unable to copy file to device: %s" % str('bad command')
     with pytest.raises(SystemExit):
-        eb_obj.do_os_install(device, image_name)
-    mock_exit.assert_called_with(dev=device,
-                                 results={
-                                     'ok': False,
-                                     'error_type': 'install',
-                                     'message': errmsg
-                                 })
+        eb_obj.do_os_install()
+    mock_exit.assert_called_with(
+        results={
+            'ok': False,
+            'error_type': 'install',
+            'message': errmsg
+        }
+    )
 
 
 @patch('aeon_ztp.bin.eos_bootstrap.EosBootstrap.exit_results', side_effect=SystemExit)
@@ -404,6 +401,8 @@ def test_do_os_install_command_error(mock_isfile, mock_exit, eb_obj, device):
 def test_do_os_install(mock_isfile, mock_exit, eb_obj, device):
     image_name = 'EOS-4.16.6M.swi'
     image_md5 = '0899eaad7f62e995a5fd109839f926eb'
+    eb_obj.dev = device
+    eb_obj.image_name = image_name
     eb_obj.ensure_md5sum = Mock(return_value=image_md5)
     # First return is for cmd execute, second retval is results of md5 command
     device.api.execute.side_effect = ['',
@@ -411,10 +410,10 @@ def test_do_os_install(mock_isfile, mock_exit, eb_obj, device):
                                           image_name=image_name, image_md5=image_md5)]},
                                       '']
 
-    eb_obj.do_os_install(device, image_name)
+    eb_obj.do_os_install()
     exe_expected_calls = [call('dir flash:{}'.format(image_name)),
                           call('verify /md5 flash:{}'.format(image_name)),
-                          call('copy running-config status-config')]
+                          call('copy running-config startup-config')]
     conf_expected_calls = [call(['boot system flash:{}'.format(image_name)])]
     device.api.execute.assert_has_calls(exe_expected_calls)
     device.api.configure.assert_has_calls(conf_expected_calls)
@@ -426,59 +425,70 @@ def test_do_os_install_md5_mismatch(mock_isfile, mock_exit, eb_obj, device):
     image_name = 'EOS-4.16.6M.swi'
     image_md5 = '0899eaad7f62e995a5fd109839f926eb'
     bad_image_md5 = 'foooooooo'
+    eb_obj.dev = device
+    eb_obj.image_name = image_name
     eb_obj.ensure_md5sum = Mock(return_value=image_md5)
     # First return is for cmd execute, second retval is results of md5 command
     device.api.execute.side_effect = ['', {'messages': ['verify /md5 (flash:{image_name}) = {image_md5}'.format(
                                       image_name=image_name, image_md5=bad_image_md5)]}]
     with pytest.raises(SystemExit):
-        eb_obj.do_os_install(device, image_name)
+        eb_obj.do_os_install()
 
-    mock_exit.assert_called_with(dev=device,
-                                 results={
-                                     'ok': False,
-                                     'error_type': 'install',
-                                     'message': 'image file {filename} MD5 mismatch has={has} should={should}'
-                                     .format(filename=image_name,
-                                             has=bad_image_md5, should=image_md5)})
+    mock_exit.assert_called_with(
+        results={
+            'ok': False,
+            'error_type': 'install',
+            'message': 'image file {filename} MD5 mismatch has={has} should={should}'
+            .format(filename=image_name, has=bad_image_md5, should=image_md5)
+        }
+    )
 
 
 def test_do_ensure_os_version_no_install(eb_obj, device):
-    eb_obj.check_os_install = Mock(return_value={'image': None})
-    retval = eb_obj.do_ensure_os_version(device)
+    eb_obj.check_os_install_and_finally = Mock(return_value={'image': None})
+    eb_obj.dev = device
+    retval = eb_obj.do_ensure_os_version()
     assert retval == device
 
 
 @patch('aeon_ztp.bin.eos_bootstrap.time')
 def test_do_ensure_os_version(mock_time, eb_obj, device):
     image_name = 'EOS-4.16.6M.swi'
-    eb_obj.check_os_install = Mock(return_value={'image': image_name})
+    finally_script = 'finally'
+    eb_obj.dev = device
+    eb_obj.image_name = image_name
+    eb_obj.finally_script = finally_script
+    eb_obj.check_os_install_and_finally = Mock(return_value={'image': image_name, 'finally': finally_script})
     eb_obj.do_os_install = MagicMock()
     eb_obj.wait_for_device = Mock(return_value=device)
-    retval = eb_obj.do_ensure_os_version(device)
+    retval = eb_obj.do_ensure_os_version()
 
-    eb_obj.do_os_install.assert_called_with(device, image_name=image_name)
+    eb_obj.do_os_install.assert_called()
     device.api.execute.assert_called_with('reload now')
     assert retval == device
 
 
+@patch('aeon_ztp.bin.eos_bootstrap.EosBootstrap')
+@patch('aeon_ztp.bin.eos_bootstrap.EosBootstrap.check_os_install_and_finally')
 @patch('aeon_ztp.bin.eos_bootstrap.EosBootstrap.do_ensure_os_version')
 @patch('aeon_ztp.bin.eos_bootstrap.EosBootstrap.wait_for_device')
 @patch('aeon_ztp.bin.eos_bootstrap.EosBootstrap.exit_results', side_effect=SystemExit)
 @patch('aeon_ztp.bin.eos_bootstrap.os.path.isdir', return_value=True)
 @patch('aeon_ztp.bin.eos_bootstrap.time')
 @patch('aeon_ztp.bin.eos_bootstrap.cli_parse')
-def test_main(mock_cli_parse, mock_time, mock_isdir, mock_exit, mock_wait, mock_ensure_os, cli_args, device):
+def test_main(mock_cli_parse, mock_time, mock_isdir, mock_exit, mock_wait, mock_ensure_os, mock_check_os_and_finally, mock_eb, cli_args, device, eb_obj):
     mock_cli_parse.return_value = cli_args
     mock_wait.return_value = device
+    eb_obj.dev = device
+    mock_eb.return_value = eb_obj
     with pytest.raises(SystemExit):
         eos_bootstrap.main()
-    mock_exit.assert_called_with({'ok': True},
-                                 dev=device)
+    mock_exit.assert_called_with({'ok': True})
     mock_wait.assert_called_with(countdown=cli_args.reload_delay, poll_delay=10)
     if device.facts['virtual']:
         assert not mock_ensure_os.called
     else:
-        mock_ensure_os.assert_called_with(device)
+        mock_ensure_os.assert_called()
 
 
 @patch('aeon_ztp.bin.eos_bootstrap.EosBootstrap.exit_results', side_effect=SystemExit)
