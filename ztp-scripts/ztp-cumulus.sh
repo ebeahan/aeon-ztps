@@ -41,9 +41,7 @@ function create_remote_user(){
 
     if [[ ! -e ${sudoer_file} ]]
     then
-        cp -r /home/cumulus /home/${REMOTE_USERNAME}
-        chown -R ${REMOTE_USERNAME}.${REMOTE_USERNAME} /home/${REMOTE_USERNAME}
-        useradd --shell /bin/bash ${REMOTE_USERNAME}
+        adduser --disabled-password --gecos "" ${REMOTE_USERNAME}
         usermod -p $(echo ${REMOTE_PASSWD} | openssl passwd -1 -stdin) ${REMOTE_USERNAME}
         echo "${REMOTE_USERNAME} ALL=(ALL) NOPASSWD:ALL" > ${sudoer_file}
     fi
