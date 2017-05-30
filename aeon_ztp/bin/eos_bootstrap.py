@@ -430,7 +430,7 @@ class EosBootstrap(object):
         try:
             self.dev.api.execute('reload now')
         except CommandError as e:
-            if 'unable to connect to eAPI' in e.exc.message:
+            if any(x in e.exc.message for x in ['unable to connect to eAPI', 'IncompleteRead']):
                 pass
             else:
                 raise
