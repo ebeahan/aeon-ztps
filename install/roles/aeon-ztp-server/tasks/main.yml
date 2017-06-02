@@ -108,8 +108,5 @@
     rsync_opts:
       - '--exclude ".*"'
 
-- name: install ansible
-  pip: name=ansible
-
 - name: install sshpass for local use of ansible
   apt: name=sshpass state=present
