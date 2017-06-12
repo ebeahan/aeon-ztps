@@ -110,3 +110,8 @@
 
 - name: install sshpass for local use of ansible
   apt: name=sshpass state=present
+
+- name: Make aeonztps directory readable
+  file:
+    path: /opt/aeonztps
+    mode: 0755

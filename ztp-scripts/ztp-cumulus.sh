@@ -10,7 +10,6 @@ REMOTE_USERNAME="admin"
 REMOTE_PASSWD="admin"
 
 INSTALL_LICENSE_FILE="license"
-INSTALL_VRF_DEB="cl-mgmtvrf.deb"
 
 LOCK_FILE=/mnt/persist/aeon-ztp.lock
 
@@ -69,54 +68,6 @@ function is_cumulus_vx(){
    fi
 }
 
-function is_vrf_aware(){
-    # Cumulus supports native VRF from version 3.x
-    local cumulus_version=$(cat /etc/lsb-release | grep DISTRIB_RELEASE | cut -d= -f2)
-    if [[ "${cumulus_version:0:1}" == "3" ]]; then
-        return 0
-    else
-        return 1
-    fi
-}
-
-function install_vrf_deb(){
-    check=$(dpkg -l | grep -i cl-mgmtvrf)
-    if [[ $? -eq 0 ]]
-    then
-        return
-    fi
-
-    wget -O cl-mgmtvrf.deb ${HTTP}/images/cumulus/${INSTALL_VRF_DEB}
-    dpkg -i cl-mgmtvrf.deb
-    /usr/sbin/cl-mgmtvrf --enable
-    if [ -e /etc/cumulus/switchd.conf ]
-    then
-        sed -ri 's/#ignore_non_swps = FALSE/ignore_non_swps = TRUE/g' \
-        /etc/cumulus/switchd.conf
-    fi
-}
-
-function enable_mgmt_vrf(){
-    if is_vrf_aware; then
-            cat > /etc/network/interfaces << EOF
-auto mgmt
-iface mgmt
-    address 127.0.0.1/8
-    vrf-table auto
-    post-up sudo service aos start
-
-auto eth0
-iface eth0 inet dhcp
-    vrf mgmt
-EOF
-       ifreload -a
-       ifdown eth0
-       ifup eth0
-    else
-       install_vrf_deb
-    fi
-}
-
 function kickstart_aeon_ztp(){
      wget -O /dev/null ${HTTP}/api/register/cumulus
 }
@@ -127,8 +78,6 @@ kickstart_aeon_ztp
 if ! is_cumulus_vx; then
    install_license
 fi
-
-enable_mgmt_vrf
 
 # CUMULUS-AUTOPROVISIONING
 
