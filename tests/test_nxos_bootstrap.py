@@ -376,7 +376,7 @@ def test_ensure_md5sum_md5_doesnt_exist(nb_obj):
 def test_do_os_install_missing_image(mock_isfile, mock_exit, nb_obj, device):
     image_name = 'test_image'
     image_fpath = os.path.join(nb_obj.cli_args.topdir, 'vendor_images', device.facts['os'], image_name)
-    errmsg = 'image file {} does not exist'.format(image_fpath)
+    errmsg = 'Image file {} does not exist'.format(image_fpath)
     nb_obj.dev = device
     nb_obj.image_name = image_name
     with pytest.raises(SystemExit):

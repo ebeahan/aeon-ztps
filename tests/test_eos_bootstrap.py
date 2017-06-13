@@ -364,7 +364,7 @@ def test_do_os_install_missing_image(mock_isfile, mock_exit, eb_obj, device):
     eb_obj.dev = device
     eb_obj.image_name = image_name
     image_fpath = os.path.join(eb_obj.cli_args.topdir, 'vendor_images', device.facts['os'], image_name)
-    errmsg = 'image file {} does not exist'.format(image_fpath)
+    errmsg = 'Image file {} does not exist'.format(image_fpath)
     with pytest.raises(SystemExit):
         eb_obj.do_os_install()
     mock_exit.assert_called_with(
@@ -438,7 +438,7 @@ def test_do_os_install_md5_mismatch(mock_isfile, mock_exit, eb_obj, device):
         results={
             'ok': False,
             'error_type': 'install',
-            'message': 'image file {filename} MD5 mismatch has={has} should={should}'
+            'message': 'Image file {filename} MD5 mismatch has={has} should={should}'
             .format(filename=image_name, has=bad_image_md5, should=image_md5)
         }
     )

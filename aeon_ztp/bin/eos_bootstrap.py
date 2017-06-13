@@ -361,7 +361,8 @@ class EosBootstrap(object):
         image_fpath = os.path.join(vendor_dir, self.image_name)
 
         if not os.path.isfile(image_fpath):
-            errmsg = 'image file {} does not exist'.format(image_fpath)
+            errmsg = 'Image file {} does not exist'.format(image_fpath)
+            self.log.critical(errmsg)
             self.exit_results(results=dict(
                 ok=False,
                 error_type='install',
@@ -393,7 +394,7 @@ class EosBootstrap(object):
         got_md5 = self.dev.api.execute('verify /md5 flash:{}'.format(self.image_name))
         has_md5 = got_md5['messages'][0].split('=')[-1].strip()
         if has_md5 != md5sum:
-            errmsg = 'image file {filename} MD5 mismatch has={has} should={should}' \
+            errmsg = 'Image file {filename} MD5 mismatch has={has} should={should}' \
                 .format(filename=self.image_name,
                         has=has_md5, should=md5sum)
 

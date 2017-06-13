@@ -339,7 +339,8 @@ class NxosBootstrap(object):
         image_fpath = os.path.join(vendor_dir, self.image_name)
 
         if not os.path.isfile(image_fpath):
-            errmsg = 'image file {} does not exist'.format(image_fpath)
+            errmsg = 'Image file {} does not exist'.format(image_fpath)
+            self.log.critical(errmsg)
             self.exit_results(results=dict(
                 ok=False,
                 error_type='install',

@@ -378,7 +378,7 @@ def test_install_os_image_missing(mock_exit_results, mock_os, cb_obj, device):
     image_name = 'test_image'
     cb_obj.image_name = image_name
     image_fpath = os.path.join(cb_obj.cli_args.topdir, 'vendor_images', _OS_NAME, image_name)
-    errmsg = 'image file does not exist: {}'.format(image_fpath)
+    errmsg = 'Image file does not exist: {}'.format(image_fpath)
     with pytest.raises(SystemExit):
         cb_obj.install_os()
     mock_exit_results.assert_called_with(results={'ok': False,

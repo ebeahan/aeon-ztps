@@ -354,7 +354,7 @@ class CumulusBootstrap(object):
 
         image_fpath = os.path.join(vendor_dir, self.image_name)
         if not os.path.exists(image_fpath):
-            errmsg = 'image file does not exist: %s' % image_fpath
+            errmsg = 'Image file does not exist: %s' % image_fpath
             self.log.error(errmsg)
             self.exit_results(results=dict(
                 ok=False, error_type='install',
