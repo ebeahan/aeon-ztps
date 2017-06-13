@@ -239,7 +239,7 @@ class NxosBootstrap(object):
     # #####
     # ##### -----------------------------------------------------------------------
 
-    @retry(wait_fixed=5000, stop_max_attempt_number=3)
+    @retry(wait_fixed=30000, stop_max_attempt_number=3)
     def do_push_config(self):
         topdir = self.cli_args.topdir
         config_dir = os.path.join(topdir, 'etc', 'configs', self.os_name)
