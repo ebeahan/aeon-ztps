@@ -81,9 +81,12 @@ no ip route 0/0
 ip route vrf management 0.0.0.0/0 $GATEWAY"
 fi
 
+if [[ -n "$DNS_IP" ]]; then
 ${CLI} "configure terminal
 no ip name-server vrf default
-ip name-server vrf management $DNS_IP
+ip name-server vrf management $DNS_IP"
+fi
+${CLI} "configure terminal
 interface $INTF
 vrf forwarding management
 ip address $IP_ADDR"
