@@ -89,6 +89,8 @@ class EosBootstrap(object):
         self.image_name = None
         self.finally_script = None
         self.dev = None
+        self.vendor_dir = os.path.join(self.cli_args.topdir, 'vendor_images', self.os_name)
+        self.image_fpath = None
 
     def setup_logging(self, logname):
         log = logging.getLogger(name=logname)
@@ -333,42 +335,17 @@ class EosBootstrap(object):
                 message=errmsg
             ), exit_error=errmsg)
 
-    def do_copy_file(self):
-        # -------------------------
-        # copy image file to device
-        # -------------------------
-
-        cmds = ['routing-context vrf {}'.format(self.dev.api.VRF_MGMT),
-                'copy http://{server}/images/{OS}/{filename} flash:'
-                .format(server=self.server, OS=self.os_name,
-                        filename=self.image_name)]
-
-        try:
-            self.dev.api.execute(cmds)
-            self.log.info('copy OS image file completed.')
-
-        except Exception as exc:
-            errmsg = "Unable to copy file to device: %s" % str(exc)
-            self.log.error(errmsg)
-            self.exit_results(results=dict(
-                ok=False,
-                error_type='install',
-                message=errmsg))
-
+    @retry(stop_max_attempt_number=10, wait_fixed=1000, stop_max_delay=600000)
     def do_os_install(self):
-
-        vendor_dir = os.path.join(self.cli_args.topdir, 'vendor_images', self.os_name)
-        image_fpath = os.path.join(vendor_dir, self.image_name)
-
-        if not os.path.isfile(image_fpath):
-            errmsg = 'Image file {} does not exist'.format(image_fpath)
+        self.image_fpath = os.path.join(self.vendor_dir, self.image_name)
+        if not os.path.isfile(self.image_fpath):
+            errmsg = 'Image file {} does not exist'.format(self.image_fpath)
             self.log.critical(errmsg)
             self.exit_results(results=dict(
                 ok=False,
                 error_type='install',
                 message=errmsg))
 
-        md5sum = self.ensure_md5sum(filepath=image_fpath)
         msg = 'installing OS image [{}] ... please be patient'.format(self.image_name)
         self.log.info(msg)
         self.post_device_status(message=msg, state='OS-INSTALL')
@@ -384,13 +361,32 @@ class EosBootstrap(object):
         except CommandError:
             has_file = False
 
-        if not has_file:
-            self.do_copy_file()
+        if has_file:
+            # ---------------------------------------------
+            # Configure switch to boot from existing upgrade image
+            # ---------------------------------------------
+            self.check_md5()
+            self.dev.api.configure(['boot system flash:%s' % self.image_name])
 
-        # -------------------
-        # verify MD5 checksum
-        # -------------------
+        else:
+            # Install directly from ZTPS, bypassing the need to copy first
+            # Note that even if the install fails, this image will persist in flash.
+            # The next retry attempt will not have to download the image again.
+            cmds = ['routing-context vrf {}'.format(self.dev.api.VRF_MGMT),
+                    'install source http://{server}/images/{OS}/{filename}'
+                    .format(server=self.server, OS=self.os_name,
+                            filename=self.image_name),
+                    'copy running-config startup-config']
+            self.dev.api.execute(cmds)
+            self.check_md5()
 
+        # Write config
+        self.dev.api.execute('copy running-config startup-config')
+        return
+
+    def check_md5(self):
+        """"""
+        md5sum = self.ensure_md5sum(filepath=self.image_fpath)
         got_md5 = self.dev.api.execute('verify /md5 flash:{}'.format(self.image_name))
         has_md5 = got_md5['messages'][0].split('=')[-1].strip()
         if has_md5 != md5sum:
@@ -405,13 +401,6 @@ class EosBootstrap(object):
                 message=errmsg))
 
         self.log.info('md5sum checksum OK.')
-
-        # ---------------------------------------------
-        # configure to use this version for system boot
-        # ---------------------------------------------
-
-        self.dev.api.configure(['boot system flash:%s' % self.image_name])
-        self.dev.api.execute('copy running-config startup-config')
 
     def do_ensure_os_version(self):
         self.check_os_install_and_finally()
@@ -430,11 +419,9 @@ class EosBootstrap(object):
 
         try:
             self.dev.api.execute('reload now')
-        except CommandError as e:
-            if any(x in e.exc.message for x in ['unable to connect to eAPI', 'IncompleteRead']):
-                pass
-            else:
-                raise
+        except CommandError:
+            # Ignore errors during disconnect due to reboot
+            pass
 
         time.sleep(self.cli_args.init_delay)
         return self.wait_for_device(countdown=self.cli_args.reload_delay, poll_delay=10)
