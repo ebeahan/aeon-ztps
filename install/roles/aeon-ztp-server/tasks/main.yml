@@ -106,7 +106,7 @@
     src: "{{ playbook_dir}}"
     dest: /usr/local/lib/aeon-ztps-installer
     rsync_opts:
-      - '--exclude ".*"'
+      - '--exclude=.*'
 
 - name: install sshpass for local use of ansible
   apt: name=sshpass state=present
