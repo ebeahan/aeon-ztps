@@ -13,6 +13,7 @@
 
   roles:
     - ubuntu-base
+    - postgresql
     - aeon-ztp-server
     - tftp-server
     - web-server

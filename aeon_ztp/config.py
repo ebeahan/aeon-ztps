@@ -7,6 +7,14 @@ _AEON_TOPDIR = os.getenv('AEON_TOPDIR')
 if not _AEON_TOPDIR:
     _AEON_TOPDIR = os.getcwd()
 
+POSTGRES = {
+    'user': 'admin',
+    'pw': 'avocadotoast',
+    'db': 'aeonztps',
+    'host': 'localhost',
+    'port': '5432'
+}
+
 
 class Config(object):
     CELERY_BROKER_URL = 'amqp://'
@@ -19,7 +27,7 @@ class ProductionConfig(Config):
     DEBUG = False
     TESTING = False
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///' + os.path.join(_AEON_TOPDIR, 'run/data.sqlite')
+        ('postgresql://%(user)s:%(pw)s@%(host)s:%(port)s/%(db)s' % POSTGRES)
 
 
 class DevelopmentConfig(Config):
