@@ -372,12 +372,13 @@ class EosBootstrap(object):
             # Install directly from ZTPS, bypassing the need to copy first
             # Note that even if the install fails, this image will persist in flash.
             # The next retry attempt will not have to download the image again.
-            cmds = ['routing-context vrf {}'.format(self.dev.api.VRF_MGMT),
-                    'install source http://{server}/images/{OS}/{filename}'
+            cmds = ['install source http://{server}/images/{OS}/{filename}'
                     .format(server=self.server, OS=self.os_name,
-                            filename=self.image_name),
-                    'copy running-config startup-config']
-            self.dev.api.execute(cmds)
+                            filename=self.image_name)]
+            try:
+                self.dev.api.execute(cmds)
+            except CommandError as e:
+                self.log.error('Error while installing image: {}'.format(str(e)))
             self.check_md5()
 
         # Write config

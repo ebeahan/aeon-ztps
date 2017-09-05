@@ -64,31 +64,23 @@ ${CLI} "copy ${HTTP_API}/bootconf/eos running"
 # MUST be done before updating the EOS configuration
 # -------------------------------------------------------------------
 
-if [[ -n "$GATEWAY" ]]; then
-${CLI} "configure terminal
-ip route 0.0.0.0/0 $GATEWAY"
-fi
-
 wget -O /dev/null ${HTTP_API}/register/eos
 
 # ----------------------------------------------
 # update the EOS management configuration
 # ----------------------------------------------
-
 if [[ -n "$GATEWAY" ]]; then
 ${CLI} "configure terminal
-no ip route 0/0
-ip route vrf management 0.0.0.0/0 $GATEWAY"
+ip route 0.0.0.0/0 $GATEWAY"
 fi
 
 if [[ -n "$DNS_IP" ]]; then
 ${CLI} "configure terminal
-no ip name-server vrf default
-ip name-server vrf management $DNS_IP"
+ip name-server $DNS_IP"
 fi
+
 ${CLI} "configure terminal
 interface $INTF
-vrf forwarding management
 ip address $IP_ADDR"
 
 ${CLI} "copy run start"
