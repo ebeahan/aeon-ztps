@@ -125,8 +125,9 @@ then do the following to install Aeon-ZTPS on that server:
 Configure DHCP Service
 ----------------------
 AEON-ZTPS includes isc-dhcp-server, and also supports external DHCP servers. An example DHCP configuration is shown below.
-.. code:: yaml
-    :caption: /etc/dhcp/dhcpd.conf
+
+.. code-block:: yaml
+   :caption: /etc/dhcp/dhcpd.conf
 
     # This is an example DHCP file. Please note that all "192.168.59.XXX" networks
     # must be configured to match your environment.
