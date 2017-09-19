@@ -122,6 +122,50 @@ then do the following to install Aeon-ZTPS on that server:
     echo "192.168.59.265" > hosts
     ansible-playbook via-ansible.yml -i hosts -u admin -kK
 
+Configure DHCP Service
+----------------------
+AEON-ZTPS includes isc-dhcp-server, and also supports external DHCP servers. An example DHCP configuration is shown below.
+.. code:: yaml
+    :caption: /etc/dhcp/dhcpd.conf
+
+    # This is an example DHCP file. Please note that all "192.168.59.XXX" networks
+    # must be configured to match your environment.
+    # If using an exter
+
+    ddns-update-style none;
+    option domain-name-servers {{ DNS server }}, {{ DNS Server }};
+    default-lease-time 7200;
+    max-lease-time 7200;
+    authoritative;
+
+    log-facility local7;
+
+    # The specific settings for Cumulus ONIE process
+    option cumulus-provision-url code 239 = text;
+
+    # this default-url *MUST* be in the global area for ONIE to
+    # work properly.  Not sure why this is, but it is.
+
+    option default-url = "http://{{ AEON-ZTPS IP }}/images/cumulus/onie-installer";
+    option cumulus-provision-url "http://{{ AEON-ZTPS IP }}/downloads/ztp-cumulus.sh";
+
+    class "eos-switch" {
+       match if (substring(option vendor-class-identifier, 0, 6) = "Arista");
+       option bootfile-name "ztp-eos.sh";
+    }
+
+    class "nxos-switch" {
+       match if (substring(option vendor-class-identifier, 0, 5) = "Cisco");
+       option bootfile-name "ztp-nxos.py";
+    }
+
+    # Add subnet scopes here
+    subnet 192.168.59.0 netmask 255.255.255.0 {
+       range 192.168.59.20 192.168.59.100;
+       option tftp-server-name "{{ AEON-ZTPS IP }}";
+       option routers 192.168.59.1;
+    }
+
 Enable DHCP Service
 -------------------
 If you installed Aeon-ZTPS with the DHCP server disabled you can later enable the service.  From the Aeon-ZTPS
