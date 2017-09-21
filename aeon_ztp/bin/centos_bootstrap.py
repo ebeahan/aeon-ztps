@@ -6,6 +6,7 @@ import json
 import argparse
 import subprocess
 import logging
+import logging.handlers
 import time
 import requests
 
@@ -93,10 +94,10 @@ class CentOSBootstrap(object):
         log.setLevel(logging.INFO)
 
         fmt = logging.Formatter(
-            '%(asctime)s:%(levelname)s:{target}:%(message)s'
+            '%(name)s %(levelname)s {target}: %(message)s'
             .format(target=self.target))
 
-        handler = logging.FileHandler(self.logfile) if self.logfile else logging.StreamHandler(sys.stdout)
+        handler = logging.handlers.SysLogHandler(address='/dev/log')
         handler.setFormatter(fmt)
         log.addHandler(handler)
 

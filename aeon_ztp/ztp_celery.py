@@ -5,6 +5,7 @@
 
 import subprocess
 import logging
+import logging.handlers
 import os
 import socket
 import requests
@@ -64,14 +65,14 @@ def get_device_facts(server, target):
         return facts
 
 
-def setup_logging(logname, logfile, target):
+def setup_logging(logname, target):
     log = logging.getLogger(name=logname)
     log.setLevel(logging.INFO)
-    fh = logging.FileHandler(logfile)
+    handler = logging.handlers.SysLogHandler(address='/dev/log')
     fmt = logging.Formatter(
-        '%(asctime)s:%(levelname)s:{target}:%(message)s'.format(target=target))
-    fh.setFormatter(fmt)
-    log.addHandler(fh)
+        '%(name)s %(levelname)s {target}: %(message)s'.format(target=target))
+    handler.setFormatter(fmt)
+    log.addHandler(handler)
     return log
 
 
@@ -122,7 +123,7 @@ def do_finalize(server, os_name, target, log, finally_script=None):
     _stdout, _stderr = child.communicate()
     rc = child.returncode
 
-    log.info("finally rc={} stdout=[{}]".format(rc, _stdout))
+    log.info("finally script complete: rc={}".format(rc))
     if len(_stderr):
         log.info("finally stderr=[{}]".format(_stderr))
 
@@ -156,7 +157,7 @@ def do_bootstrapper(server, os_name, target, log):
     _stdout, _stderr = this.communicate()
     rc = this.returncode
 
-    log.info("rc={} stdout={}".format(rc, _stdout))
+    log.info("bootstrapper complete: rc={}".format(rc))
     if len(_stderr):
         log.error("stderr={}".format(_stderr))
 
@@ -168,9 +169,7 @@ def ztp_bootstrapper(os_name, target):
 
     server = "{}:{}".format(get_server_ipaddr(target), _AEON_PORT)
 
-    log = setup_logging(
-        logname='aeon-bootstrapper', logfile=_AEON_LOGFILE,
-        target=target)
+    log = setup_logging(logname='aeon-bootstrapper', target=target)
     try:
         state = get_device_state(server, target)
         if state and state not in ('ERROR', 'DONE'):
@@ -224,7 +223,7 @@ def ztp_finalizer(os_name, target):
     facts = get_device_facts(server, target)
     finally_script = facts.get('finally_script', None)
 
-    log = setup_logging(logname='aeon-finalizer', logfile=_AEON_LOGFILE, target=target)
+    log = setup_logging(logname='aeon-finalizer', target=target)
 
     try:
         rc, _stderr = do_finalize(server=server, os_name=os_name, target=target, log=log, finally_script=finally_script)
