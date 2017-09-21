@@ -213,7 +213,7 @@ def ztp_bootstrapper(os_name, target):
                            os_name=os_name, target=target,
                            state='DONE', message='device bootstrap completed')
     finally:
-        logging.shutdown()
+        log.handlers.pop()
     return rc
 
 
@@ -233,4 +233,4 @@ def ztp_finalizer(os_name, target):
                                state='ERROR', message='Error running finally script: {}'.format(_stderr))
             return rc, _stderr
     finally:
-        logging.shutdown()
+        log.handlers.pop()
