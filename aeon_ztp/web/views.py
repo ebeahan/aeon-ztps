@@ -114,6 +114,7 @@ def scrape_file(filename, search, searchfilter='', lineno=0):
         with open(filename, "r") as f:
             for line in f:
                 # A bit lazy: could maybe be faster.
+                line = line.decode('utf8')
                 if search in line.lower() and searchfilter in line.lower():
                     lines.append(line.replace('\n', ''))
             if lineno:

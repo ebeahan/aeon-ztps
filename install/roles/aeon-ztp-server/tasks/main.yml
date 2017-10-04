@@ -116,10 +116,13 @@
     path: /opt/aeonztps
     mode: 0755
 
-- name: Give AEON group read access to syslog
+- name: Give AEON group read access to logs
   acl:
     entity: aeon
     path: /var/log/syslog
     etype: group
     permissions: r
     state: present
+  with_items:
+     - /var/log/syslog
+     - /var/log/uwsgi/app/aeon-ztp.log
