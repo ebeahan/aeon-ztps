@@ -8,6 +8,7 @@ import argparse
 import subprocess
 import logging
 import logging.handlers
+import tempfile
 import time
 import requests
 from retrying import retry
@@ -295,8 +296,11 @@ class NxosBootstrap(object):
         with open(filepath, 'rb') as f:
             md5sum = hashlib.md5(f.read()).hexdigest()
 
-        with open(md5sum_fpath, 'a') as f:
-            f.write(md5sum)
+        with tempfile.NamedTemporaryFile('w', dir=os.path.dirname(md5sum_fpath), delete=False) as tf:
+            tf.write(md5sum)
+            tempname = tf.name
+
+        os.rename(tempname, md5sum_fpath)
 
         return md5sum
 
