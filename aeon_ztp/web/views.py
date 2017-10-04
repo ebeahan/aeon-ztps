@@ -70,9 +70,9 @@ def valid_logs():
             'description': 'Aeon UWSGI Web application logs (not very useful)'
         },
         'bootstrapper': {
-            'filename': '/var/log/aeon-ztp/bootstrapper.log',
+            'filename': '/var/log/syslog',
             'search': '',
-            'description': 'Aeon ZTP Bootstrapper log files'
+            'description': 'Aeon ZTP Device log files'
         },
         'nginx-access': {
             'filename': '/var/log/aeon-ztp/nginx.access.log',

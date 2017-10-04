@@ -115,3 +115,11 @@
   file:
     path: /opt/aeonztps
     mode: 0755
+
+- name: Give AEON group read access to syslog
+  acl:
+    entity: aeon
+    path: /var/log/syslog
+    etype: group
+    permissions: r
+    state: present
