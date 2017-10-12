@@ -363,7 +363,7 @@ def test_onie_install_pxssh(mock_pxssh, mock_time, cb_obj, device):
                    mock.call().sendline('onie-nos-install http://{server}/images/{os_name}/{image_name}'.format(
                        server=cb_obj.cli_args.server, os_name=_OS_NAME, image_name=image_name)),
                    mock.call().expect('installer', timeout=15),
-                   mock.call().expect('Please reboot to start installing OS.', timeout=180),
+                   mock.call().expect('Please reboot to start installing OS.', timeout=240),
                    mock.call().prompt(),
                    mock.call().sendline('reboot'),
                    mock.call().close()]

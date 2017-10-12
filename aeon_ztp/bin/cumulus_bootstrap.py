@@ -10,6 +10,7 @@ import logging.handlers
 import time
 import requests
 import semver
+from retrying import retry
 from pexpect import pxssh
 from pexpect.exceptions import EOF
 from pexpect.pxssh import ExceptionPxssh
@@ -308,6 +309,7 @@ class CumulusBootstrap(object):
                 message=errmsg
             ), exit_error=errmsg)
 
+    @retry(wait_fixed=15000, stop_max_attempt_number=3)
     def onie_install(self, user='root'):
         """Initiates install in ONIE-RESCUE mode.
 
@@ -334,12 +336,11 @@ class CumulusBootstrap(object):
             ssh.expect('installer', timeout=15)
 
             # Indicates that the image has been downloaded and verified
-            ssh.expect('Please reboot to start installing OS.', timeout=180)
+            ssh.expect('Please reboot to start installing OS.', timeout=240)
 
             ssh.prompt()
             ssh.sendline('reboot')
             time.sleep(2)
-            ssh.close()
 
             msg = 'Cumulus download completed and verified, reboot initiated.'
             self.log.info(msg)
@@ -349,6 +350,8 @@ class CumulusBootstrap(object):
         except pxssh.ExceptionPxssh as e:
             self.log.info(str(e))
             self.exit_results(results=dict(ok=False, error_type='install', message=e))
+        finally:
+            ssh.close()
 
     def install_os(self):
         vendor_dir = os.path.join(self.cli_args.topdir, 'vendor_images', self.os_name)
