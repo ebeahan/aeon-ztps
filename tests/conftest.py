@@ -59,7 +59,7 @@ def session(app):
 
 @pytest.fixture(scope="function")
 def device(session, device_data=None):
-    now = datetime.now().isoformat()
+    now = datetime.now()
     device_data = {'ip_addr': '1.2.3.4',
                    'os_name': 'NXOS',
                    'created_at': now,
@@ -73,9 +73,15 @@ def device(session, device_data=None):
                    'image_name': '1.0.1b',
                    'facts': '{"mac_address": "00112233445566"}'
                    }
+
     device = models.Device(**device_data)
     session.add(device)
     session.commit()
+
+    # Have to convert datetime object to string because that's what sqlite3 does. Also have to add '+00:00'
+    device_data['created_at'] = now.isoformat() + '+00:00'
+    device_data['updated_at'] = now.isoformat() + '+00:00'
+
     yield device_data
 
     # Teardown code

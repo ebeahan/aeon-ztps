@@ -29,6 +29,7 @@ from werkzeug.utils import secure_filename
 from aeon_ztp import ztp_os_selector
 from aeon_ztp.api import models
 from ztp_sudo import flush_dhcp
+from aeon_ztp.api.views import ztp_retry
 
 _syslog_file = "/var/log/syslog"
 _dhcp_leases_file = '/var/lib/dhcp/dhcpd.leases'
@@ -540,6 +541,19 @@ def delete_device(ip):
     deldevices.delete(synchronize_session=False)
     db.commit()
     flash('Deleted {} entries from ZTP DB'.format(count), 'success')
+    return redirect(url_for('web.status'))
+
+
+@web.route('/devices/retry/<ip>')
+def retry(ip):
+    """ Retry ZTP process for device IP.
+
+    Args:
+        ip (str): IP address to retry ZTP.
+
+    """
+    ztp_retry(ip)
+    flash('Retrying ZTP for %s' % ip, 'success')
     return redirect(url_for('web.status'))
 
 

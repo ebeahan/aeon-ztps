@@ -5,7 +5,7 @@
 <meta http-equiv="refresh" content="5">
 </head>
 
-<table class="table">
+<table class="table" id="statusTable">
   <tr>
     <th>IP</th>
     <th>OS Name</th>
@@ -14,12 +14,10 @@
     <th>OS Version</th>
     <th>State</th>
     <th>Message</th>
-    <th>Created At</th>
-    <th>Updated at</th>
-    <th>Bootstrapper logs</th>
-    <th>Celery Logs</th>
-    <th>DHCP Logs</th>
-    <th>DHCP Lease</th>
+    <th>Created</th>
+    <th>Updated</th>
+    <th>ZTP logs</th>
+    <th>ZTP Retry</th>
     <th>Delete</th>
   </tr>
   {% for device in devices %}
@@ -39,13 +37,15 @@
       <td>{{device.os_version}}</td>
       <td><span class="label label-{{class}}">{{device.state}}</span></td>
       <td>{{device.message}}</td>
-      <td>{{device.created_at}}</td>
-      <td>{{device.updated_at}}</td>
-      <td><a href="/logs?bootstrapper=y&searchfilter={{device.ip_addr}}">Bootstrapper Logs</a></td>
-      <td><a href="/logs?celery=y&searchfilter={{device.ip_addr}}">Celery logs</a></td>
-      <td><a href="/logs?dhcp=y&searchfilter={{device.ip_addr}}">DHCP Logs</a></td>
-      <td><a href="/dhcp?ip={{device.ip_addr}}">DHCP Lease</a></td>
-      <td><a href="/devices/delete/{{device.ip_addr}}"><button type="button" class="btn btn-warning">Delete</button></a></td>
+      <td>{{ moment(device.created_at).format('h:m:sA MM/DD/YYYY') }}</td>
+      <td>{{ moment(device.updated_at).format('h:m:sA MM/DD/YYYY') }}</td>
+      <td><a href="/logs?bootstrapper=y&searchfilter={{device.ip_addr}}"><button type="button" class="btn btn-info"><span class="glyphicon glyphicon-list-alt"></span> Logs</button></a></td>
+      <td><a href="/devices/retry/{{ device.ip_addr }}"><button type="button" class="btn btn-warning"><span class="glyphicon glyphicon-refresh"></span> Retry</button></a></td>
+      <td>
+          <form></form>
+          <a href="/devices/delete/{{device.ip_addr}}"><button type="submit" formmethod="post" class="btn btn-danger"><span class="glyphicon glyphicon-remove"></span> Delete</button></a></td>
     </tr>
   {% endfor %}
+</table>
 {% endblock %}
+

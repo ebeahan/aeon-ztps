@@ -20,6 +20,8 @@
       {% endblock %}
     </div> <!-- ./container main -->
     <!-- At end of document so pages load faster -->
+    {{ moment.include_jquery() }}
+    {{ moment.include_moment() }}
     <script src="{{ url_for('web.static', filename='js/jquery-3.1.0.min.js') }}"></script>
     <script src="{{ url_for('web.static', filename='js/bootstrap.min.js') }}"></script>
     {% block script %}

@@ -25,8 +25,6 @@ def run(cmd):
     except subprocess.CalledProcessError as e:
         print e
         raise
-    except:
-        raise
 
 
 def sudo(cmd):

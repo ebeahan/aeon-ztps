@@ -343,7 +343,7 @@ def test_onie_install_pxssh_exception(mock_pxssh, mock_exit_results, cb_obj, dev
     exc = ExceptionPxssh('Could not establish connection to host')
     mock_pxssh.return_value.login.side_effect = exc
     with pytest.raises(SystemExit):
-        cb_obj.onie_install()
+        cb_obj.do_onie_install()
     mock_exit_results.assert_called_with(results={'ok': False,
                                                   'error_type': 'install',
                                                   'message': exc})
@@ -367,7 +367,7 @@ def test_onie_install_pxssh(mock_pxssh, mock_time, cb_obj, device):
                    mock.call().prompt(),
                    mock.call().sendline('reboot'),
                    mock.call().close()]
-    success = cb_obj.onie_install(user=user)
+    success = cb_obj.do_onie_install(user=user)
     assert success
     assert mock_pxssh.mock_calls == pxssh_calls
 

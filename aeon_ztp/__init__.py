@@ -7,9 +7,11 @@ from flask import Flask
 from config import config
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
+from flask_moment import Moment
 
 db = SQLAlchemy()
 ma = Marshmallow()
+moment = Moment()
 
 
 def create_app(conf=None):
@@ -21,6 +23,7 @@ def create_app(conf=None):
     app.config.from_object(config[conf])
     db.init_app(app)
     ma.init_app(app)
+    moment.init_app(app)
     from aeon_ztp.api.views import api
     from aeon_ztp.web.views import web
     app.register_blueprint(api)

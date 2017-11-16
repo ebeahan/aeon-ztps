@@ -86,7 +86,7 @@ class EosBootstrap(object):
         self.os_name = 'eos'
         self.progname = '%s-bootstrap' % self.os_name
         self.logfile = self.cli_args.logfile
-        self.log = self.setup_logging(logname=self.progname)
+        self.log = self.setup_logging(logname=self.progname, logfile=self.logfile)
         self.user, self.passwd = self.get_user_and_passwd()
         self.image_name = None
         self.finally_script = None
@@ -94,7 +94,7 @@ class EosBootstrap(object):
         self.vendor_dir = os.path.join(self.cli_args.topdir, 'vendor_images', self.os_name)
         self.image_fpath = None
 
-    def setup_logging(self, logname):
+    def setup_logging(self, logname, logfile=None):
         log = logging.getLogger(name=logname)
         log.setLevel(logging.INFO)
 
@@ -102,7 +102,10 @@ class EosBootstrap(object):
             '%(name)s %(levelname)s {target}: %(message)s'
             .format(target=self.target))
 
-        handler = logging.handlers.SysLogHandler(address='/dev/log')
+        if logfile:
+            handler = logging.FileHandler(self.logfile)
+        else:
+            handler = logging.handlers.SysLogHandler(address='/dev/log')
         handler.setFormatter(fmt)
         log.addHandler(handler)
 

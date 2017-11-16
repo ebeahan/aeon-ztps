@@ -86,13 +86,13 @@ class NxosBootstrap(object):
         self.os_name = 'nxos'
         self.progname = '%s-bootstrap' % self.os_name
         self.logfile = self.cli_args.logfile
-        self.log = self.setup_logging(logname=self.progname)
+        self.log = self.setup_logging(logname=self.progname, logfile=self.logfile)
         self.user, self.passwd = self.get_user_and_passwd()
         self.image_name = None
         self.finally_script = None
         self.dev = None
 
-    def setup_logging(self, logname):
+    def setup_logging(self, logname, logfile=None):
         log = logging.getLogger(name=logname)
         log.setLevel(logging.INFO)
 
@@ -100,7 +100,10 @@ class NxosBootstrap(object):
             '%(name)s %(levelname)s {target}: %(message)s'
             .format(target=self.target))
 
-        handler = logging.handlers.SysLogHandler(address='/dev/log')
+        if logfile:
+            handler = logging.FileHandler(self.logfile)
+        else:
+            handler = logging.handlers.SysLogHandler(address='/dev/log')
         handler.setFormatter(fmt)
         log.addHandler(handler)
 
@@ -362,7 +365,11 @@ class NxosBootstrap(object):
                   image_name=self.image_name, md5sum=md5sum)
 
         if self.cli_args.logfile:
-            cmd += ' --logfile %s' % self.cli_args.logfile
+            cmd += ' --logfile %s' % self.logfile
+
+        # log to syslog if no logfile specified
+        else:
+            cmd += ' --syslog'
 
         child = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
         _stdout, _stderr = child.communicate()

@@ -291,17 +291,17 @@ def test_put_device_facts_no_result_found(client):
     assert rvd['item'] == device_info
 
 
-def test_delete_devices_all(client, device):
-    rv = client.delete('/api/devices?all=True')
-    assert rv.status_code == 200
-
-
 def test_delete_devices(client, device):
     rv = client.delete('/api/devices?ip_addr=1.2.3.4')
     assert rv.status_code == 200
     rvd = json.loads(rv.data)
     assert rvd['ok']
     assert rvd['count'] == 1
+
+
+def test_delete_devices_all(client, device):
+    rv = client.delete('/api/devices?all=True')
+    assert rv.status_code == 200
 
 
 def test_delete_devices_no_result_found(client, device):

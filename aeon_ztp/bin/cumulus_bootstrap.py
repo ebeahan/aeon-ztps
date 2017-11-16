@@ -93,21 +93,23 @@ class CumulusBootstrap(object):
         self.os_name = 'cumulus'
         self.progname = '%s-bootstrap' % self.os_name
         self.logfile = self.cli_args.logfile
-        self.log = self.setup_logging(logname=self.progname)
+        self.log = self.setup_logging(logname=self.progname, logfile=self.logfile)
         self.user, self.passwd = self.get_user_and_passwd()
         self.image_name = None
         self.finally_script = None
         self.dev = None
 
-    def setup_logging(self, logname):
+    def setup_logging(self, logname, logfile=None):
         log = logging.getLogger(name=logname)
         log.setLevel(logging.INFO)
 
         fmt = logging.Formatter(
             '%(name)s %(levelname)s {target}: %(message)s'
             .format(target=self.target))
-
-        handler = logging.handlers.SysLogHandler(address='/dev/log')
+        if logfile:
+            handler = logging.FileHandler(self.logfile)
+        else:
+            handler = logging.handlers.SysLogHandler(address='/dev/log')
         handler.setFormatter(fmt)
         log.addHandler(handler)
 
@@ -309,8 +311,13 @@ class CumulusBootstrap(object):
                 message=errmsg
             ), exit_error=errmsg)
 
+    # Cannot mock out retry decorator in unittest.
+    # Retry wrapper function around do_onie_install to avoid long unittest times.
     @retry(wait_fixed=15000, stop_max_attempt_number=3)
-    def onie_install(self, user='root'):
+    def onie_install(self, *args, **kwargs):
+        self.do_onie_install(**kwargs)
+
+    def do_onie_install(self, user='root'):
         """Initiates install in ONIE-RESCUE mode.
 
         Args:

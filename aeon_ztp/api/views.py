@@ -67,6 +67,42 @@ def api_env():
     my_env = os.environ.copy()
     return jsonify(my_env)
 
+
+@api.route('/api/retry/<ip_addr>', methods=['GET'])
+def ztp_retry(ip_addr):
+    """
+    Returns device to default configuration and reloads device to retry ZTP
+    :param ip_addr: IP Address of device
+    :return ok: Boolean status of request
+    :return message: Status message
+    :return data: Device data after successful request
+    """
+
+    db = aeon_ztp.db.session
+    try:
+        dev = db.query(Device).filter(Device.ip_addr == ip_addr).one()
+        dev.message = 'Defaulting device config and reloading to retry ZTP'
+        dev.state = 'RETRY'
+        dev.updated_at = time_now()
+        db.commit()
+
+    except NoResultFound:
+        return jsonify(
+            ok=False,
+            message='Not Found'), 404
+
+    except Exception as exc:
+        return jsonify(
+            ok=False,
+            error_type=str(type(exc)),
+            message=exc.message), 500
+
+    # Run retry
+    ztp_celery.retry_ztp.delay(ip_addr, nos=dev.os_name)
+
+    return jsonify(
+        ok=True,
+        message='ZTP retry initiated')
 # -----------------------------------------------------------------------------
 #
 #                                 Utility Functions
@@ -75,8 +111,7 @@ def api_env():
 
 
 def find_device(db, dev_data):
-    return db.query(Device).filter(Device.os_name == dev_data['os_name'],
-                                   Device.ip_addr == dev_data['ip_addr'])
+    return db.query(Device).filter(Device.ip_addr == dev_data['ip_addr'])
 
 
 def find_devices(db, matching):
@@ -93,8 +128,7 @@ def find_devices(db, matching):
 
 
 def time_now():
-    now = datetime.now()
-    return datetime.isoformat(now)
+    return datetime.now()
 
 
 # -----------------------------------------------------------------------------
@@ -161,7 +195,7 @@ def _create_device():
 
     try:
         rec = find_device(db, device_data).one()
-        rec.updated_at = time_now()
+        rec.updated_at = datetime.now()
         rec.message = 'device with os_name, ip_addr already exists'
         db.commit()
 
@@ -177,8 +211,8 @@ def _create_device():
     # ---------------------------------------------
 
     try:
-        db.add(Device(created_at=time_now(),
-                     updated_at=time_now(),
+        db.add(Device(created_at=datetime.now(),
+                     updated_at=datetime.now(),
                      **device_data))
         db.commit()
 
@@ -211,7 +245,7 @@ def _put_device_status():
             rec.state = rqst_data['state']
 
         rec.message = rqst_data.get('message')
-        rec.updated_at = time_now()
+        rec.updated_at = datetime.now()
         db.commit()
 
     except NoResultFound:
@@ -238,7 +272,7 @@ def _put_device_facts():
         rec.hw_model = rqst_data.get('hw_model')
         rec.os_version = rqst_data.get('os_version')
         rec.facts = rqst_data.get('facts')
-        rec.updated_at = time_now()
+        rec.updated_at = datetime.now()
         rec.image_name = rqst_data.get('image_name')
         rec.finally_script = rqst_data.get('finally_script')
 

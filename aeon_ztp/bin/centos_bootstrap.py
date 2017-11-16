@@ -83,13 +83,13 @@ class CentOSBootstrap(object):
         self.os_name = 'centos'
         self.progname = 'centos-bootstrap'
         self.logfile = self.cli_args.logfile
-        self.log = self.setup_logging(logname=self.progname)
+        self.log = self.setup_logging(logname=self.progname, logfile=self.logfile)
         self.user, self.passwd = self.get_user_and_passwd()
         self.image_name = None
         self.finally_script = None
         self.dev = None
 
-    def setup_logging(self, logname):
+    def setup_logging(self, logname, logfile=None):
         log = logging.getLogger(name=logname)
         log.setLevel(logging.INFO)
 
@@ -97,7 +97,10 @@ class CentOSBootstrap(object):
             '%(name)s %(levelname)s {target}: %(message)s'
             .format(target=self.target))
 
-        handler = logging.handlers.SysLogHandler(address='/dev/log')
+        if logfile:
+            handler = logging.FileHandler(self.logfile)
+        else:
+            handler = logging.handlers.SysLogHandler(address='/dev/log')
         handler.setFormatter(fmt)
         log.addHandler(handler)
 

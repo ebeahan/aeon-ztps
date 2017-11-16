@@ -18,7 +18,8 @@ Flask-SQLAlchemy==2.1
 flask-marshmallow==0.7.0
 Sphinx==1.4.6
 semver==2.7.3
-pexpect==4.0.1
+pexpect==4.2.1
 paramiko==1.17.2
-aeon-venos[nxos,cumulus,ubuntu,eos,centos]
+aeon-venos[nxos,cumulus,ubuntu,eos,centos]>=0.9.7
 retrying
+flask-moment==0.5.2
