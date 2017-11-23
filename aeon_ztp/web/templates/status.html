@@ -37,8 +37,8 @@
       <td>{{device.os_version}}</td>
       <td><span class="label label-{{class}}">{{device.state}}</span></td>
       <td>{{device.message}}</td>
-      <td>{{ moment(device.created_at).format('h:m:sA MM/DD/YYYY') }}</td>
-      <td>{{ moment(device.updated_at).format('h:m:sA MM/DD/YYYY') }}</td>
+      <td>{{ moment(device.created_at).format('h:mm:ssA MM/DD/YYYY') }}</td>
+      <td>{{ moment(device.updated_at).format('h:mm:ssA MM/DD/YYYY') }}</td>
       <td><a href="/logs?bootstrapper=y&searchfilter={{device.ip_addr}}"><button type="button" class="btn btn-info"><span class="glyphicon glyphicon-list-alt"></span> Logs</button></a></td>
       <td><a href="/devices/retry/{{ device.ip_addr }}"><button type="button" class="btn btn-warning"><span class="glyphicon glyphicon-refresh"></span> Retry</button></a></td>
       <td>
