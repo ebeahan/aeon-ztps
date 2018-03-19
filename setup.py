@@ -31,12 +31,12 @@ class Tox(TestCommand):
 
 setup(
     name="aeon-ztp",
-    version="1.5.2",
+    version="1.5.3",
     author="Apstra Customer Enablement",
     author_email="community@apstra.com",
     description=("AEON ZTP Server"),
     url="https://github.com/Apstra/aeon-ztps",
-    scripts=['aeon_ztp/bin/aztp-db-flush'],
+    scripts=['aeon_ztp/bin/aztp-db-flush', 'aeon_ztp/bin/aztp-manage'],
     license="Apache 2.0",
     keywords="networking automation vendor-agnostic",
     packages=find_packages(exclude=["tests", ".*"]),

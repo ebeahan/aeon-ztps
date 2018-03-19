@@ -120,3 +120,9 @@
   with_items:
      - /var/log/syslog
      - /var/log/uwsgi/app/aeon-ztp.log
+
+- name: Create the Database tables
+  shell: |
+    aztp-manage db init
+    aztp-manage db migrate
+    aztp-manage db upgrade
