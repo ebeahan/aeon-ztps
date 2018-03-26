@@ -8,16 +8,18 @@ import subprocess
 import logging
 import logging.handlers
 import time
-import requests
-import semver
-import tenacity
-from pexpect import pxssh
-from pexpect.exceptions import EOF
-from pexpect.pxssh import ExceptionPxssh
 
-from aeon.cumulus.device import Device
+import re
+import requests
+import tenacity
+
+from pexpect import pxssh
+import pexpect
+
+from aeon.opx.device import Device
 from paramiko import AuthenticationException
 from paramiko.ssh_exception import NoValidConnectionsError
+
 from aeon.exceptions import LoginNotReadyError
 
 _DEFAULTS = {
@@ -34,8 +36,8 @@ _DEFAULTS = {
 
 def cli_parse(cmdargs=None):
     psr = argparse.ArgumentParser(
-        prog='cumulus_bootstrap',
-        description="Aeon-ZTP bootstrapper for Cumulus Linux",
+        prog='opx_bootstrap',
+        description="Aeon-ZTP bootstrapper for OPX",
         add_help=True)
 
     psr.add_argument(
@@ -61,6 +63,7 @@ def cli_parse(cmdargs=None):
 
     psr.add_argument(
         '--init-delay',
+
         type=int, default=_DEFAULTS['init-delay'],
         help="amount of time/s to wait before starting the bootstrap process")
 
@@ -85,12 +88,12 @@ def cli_parse(cmdargs=None):
     return psr.parse_args(cmdargs)
 
 
-class CumulusBootstrap(object):
+class OpxBootstrap(object):
     def __init__(self, server, cli_args):
         self.server = server
         self.cli_args = cli_args
         self.target = self.cli_args.target
-        self.os_name = 'cumulus'
+        self.os_name = 'opx'
         self.progname = '%s-bootstrap' % self.os_name
         self.logfile = self.cli_args.logfile
         self.log = self.setup_logging(logname=self.progname, logfile=self.logfile)
@@ -106,6 +109,7 @@ class CumulusBootstrap(object):
         fmt = logging.Formatter(
             '%(name)s %(levelname)s {target}: %(message)s'
             .format(target=self.target))
+
         if logfile:
             handler = logging.FileHandler(self.logfile)
         else:
@@ -114,6 +118,49 @@ class CumulusBootstrap(object):
         log.addHandler(handler)
 
         return log
+
+    def get_ssh_session(self, user=None, password=None, onie=False, sudo=False):
+        ssh = pxssh.pxssh(options={"StrictHostKeyChecking": "no", "UserKnownHostsFile": "/dev/null"})
+        # Uncomment for debugging when running opx_bootstrap.py from bash
+        # ssh.logfile = sys.stdout
+        if password:
+            ssh.login(self.target, user, password=password, auto_prompt_reset=not onie)
+        else:
+            ssh.login(self.target, user, auto_prompt_reset=not onie)
+        if onie:
+            ssh.PROMPT = 'ONIE:.*#'
+        if sudo:
+            rootprompt = re.compile('root@.*[#]')
+            ssh.sendline('sudo -s')
+            i = ssh.expect([rootprompt, 'assword.*: '])
+            if i == 0:
+                # Password not required
+                pass
+            elif i == 1:
+                # Sending sudo password
+                ssh.sendline(self.passwd)
+                j = ssh.expect([rootprompt, 'Sorry, try again'])
+                if j == 0:
+                    pass
+                elif j == 1:
+                    errmsg = 'Bad sudo password.'
+                    self.exit_results(results=dict(
+                        ok=False,
+                        error_type='install',
+                        message=errmsg))
+            else:
+                errmsg = 'Unable to obtain root privileges.'
+                self.exit_results(results=dict(
+                    ok=False,
+                    error_type='install',
+                    message=errmsg))
+            ssh.set_unique_prompt()
+            ssh.sendline('whoami')
+            ssh.expect('root')
+            self.log.info('Logged in as root')
+        ssh.sendline('\n')
+        ssh.prompt()
+        return ssh
 
     # ##### -----------------------------------------------------------------------
     # #####
@@ -155,15 +202,20 @@ class CumulusBootstrap(object):
 
     def exit_results(self, results, exit_error=None):
         if results['ok']:
-            self.post_device_status(message='bootstrap completed OK', state='DONE')
+            msg = 'bootstrap completed OK'
+            self.post_device_status(message=msg, state='DONE')
+            self.log.info(msg)
             sys.exit(0)
         else:
-            self.post_device_status(message=results['message'], state='FAILED')
+            msg = results['message']
+            self.post_device_status(message=msg, state='FAILED')
+            self.log.error(msg)
             sys.exit(exit_error or 1)
 
     def get_user_and_passwd(self):
         user = self.cli_args.user or os.getenv(self.cli_args.env_user)
         passwd = os.getenv(self.cli_args.env_passwd)
+
         if not user:
             errmsg = "login user-name missing"
             self.log.error(errmsg)
@@ -189,7 +241,8 @@ class CumulusBootstrap(object):
         # we'll use the probe error to detect if it is or not
 
         while not dev:
-            new_msg = msg or 'OS installation in progress. Timeout remaining: {} seconds'.format(countdown)
+
+            new_msg = msg or 'Waiting for device access via SSH. Timeout remaining: {} seconds'.format(countdown)
             self.post_device_status(message=new_msg, state='AWAIT-ONLINE')
             self.log.info(new_msg)
 
@@ -226,11 +279,7 @@ class CumulusBootstrap(object):
         self.post_device_facts()
 
     def wait_for_onie_rescue(self, countdown, poll_delay, user='root'):
-        """Polls for SSH access to cumulus device in ONIE rescue mode.
-
-        The poll functionality was necessary in addition to the current wait_for_device function
-        because of incompatibilities with the dropbear_2013 OS that is on the cumulus switches and
-        paramiko in the existing function.
+        """Polls for SSH access to OPX device in ONIE rescue mode.
 
         Args:
             countdown (int): Countdown in seconds to wait for device to become reachable.
@@ -241,7 +290,8 @@ class CumulusBootstrap(object):
 
         while countdown >= 0:
             try:
-                msg = 'Cumulus installation in progress. Waiting for boot to ONIE rescue mode. Timeout remaining: {} seconds'.format(countdown)
+                msg = 'OPX installation in progress. Waiting for ONIE rescue mode. Timeout remaining: {} seconds'.format(
+                    countdown)
                 self.post_device_status(message=msg, state='AWAIT-ONLINE')
                 self.log.info(msg)
                 ssh = pxssh.pxssh(options={"StrictHostKeyChecking": "no", "UserKnownHostsFile": "/dev/null"})
@@ -251,9 +301,8 @@ class CumulusBootstrap(object):
                 ssh.prompt()
 
                 return True
-            except (ExceptionPxssh, EOF) as e:
-                if (str(e) == 'Could not establish connection to host') or isinstance(e, EOF):
-                    ssh.close()
+            except (pexpect.pxssh.ExceptionPxssh, pexpect.exceptions.EOF) as e:
+                if (str(e) == 'Could not establish connection to host') or isinstance(e, pexpect.exceptions.EOF):
                     countdown -= poll_delay
                     time.sleep(poll_delay)
                 else:
@@ -321,44 +370,66 @@ class CumulusBootstrap(object):
         """Initiates install in ONIE-RESCUE mode.
 
         Args:
-            dev (Device object): Cumulus device object
+            dev (Device object): OPX device object
             user (str): ONIE rescue mode user
         """
 
-        msg = 'Cumulus download and verification in progress.'
+        msg = 'Beginning OPX download and installation.'
         self.post_device_status(message=msg, state='ONIE-RESCUE')
         self.log.info(msg)
-        try:
-            ssh = pxssh.pxssh(options={"StrictHostKeyChecking": "no", "UserKnownHostsFile": "/dev/null"})
-            ssh.login(self.dev.target, user, auto_prompt_reset=False)
-            ssh.PROMPT = 'ONIE:.*#'
-            ssh.sendline('\n')
-            ssh.prompt()
+        ssh = self.get_ssh_session(user=user, onie=True)
 
+        def start_installation():
             # Start installation process
             ssh.sendline('onie-nos-install http://{server}/images/{os_name}/{image_name}'
                          .format(server=self.cli_args.server, os_name=self.os_name, image_name=self.image_name))
 
             # 'installer' means that the download has started
-            ssh.expect('installer', timeout=15)
+            ssh.expect('installer', timeout=30)
 
-            # Indicates that the image has been downloaded and verified
-            ssh.expect('Please reboot to start installing OS.', timeout=240)
-
-            ssh.prompt()
-            ssh.sendline('reboot')
-            time.sleep(2)
-
-            msg = 'Cumulus download completed and verified, reboot initiated.'
+            msg = 'OPX image download has started. Will timeout if not completed within 10 minutes.'
             self.log.info(msg)
             self.post_device_status(message=msg, state='OS-INSTALL')
-            return True
+
+            check_install_status()
+
+            msg = 'OPX download complete. Executing installer. Will timeout if not completed within 20 minutes.'
+            self.log.info(msg)
+            self.post_device_status(message=msg, state='OS-INSTALL')
+
+            # Indicates that the image has been downloaded and verified
+            ssh.expect('Installation finished. No error reported.', timeout=20 * 60)
+            ssh.prompt()
+            ssh.sendline('reboot')
+            msg = 'OPX download completed and verified, reboot initiated.'
+            self.log.info(msg)
+            self.post_device_status(message=msg, state='OS-INSTALL')
+            ssh.close()
+
+        @tenacity.retry(wait=tenacity.wait_fixed(5),
+                        stop=tenacity.stop_after_delay(10 * 60),
+                        retry=tenacity.retry_if_exception(pexpect.exceptions.TIMEOUT))
+        def check_install_status():
+            """
+            Check to see that either the install has started, or that the download has timed out.
+            :return:
+            """
+            # 'Executing installer' means that the download has finished
+            i = ssh.expect(['Verifying image checksum...OK', 'download timed out'], timeout=5)
+            if i == 0:
+                pass
+            if i == 1:
+                msg = 'Download timed out: http://{server}/images/{os_name}/{image_name}'.format(
+                    server=self.cli_args.server, os_name=self.os_name, image_name=self.image_name)
+                self.log.info(msg)
+                self.exit_results(results=dict(ok=False, error_type='install', message=msg))
+
+        try:
+            start_installation()
 
         except pxssh.ExceptionPxssh as e:
             self.log.info(str(e))
-            self.exit_results(results=dict(ok=False, error_type='install', message=e))
-        finally:
-            ssh.close()
+            self.exit_results(results=dict(ok=False, error_type='install', message=str(e)))
 
     def install_os(self):
         vendor_dir = os.path.join(self.cli_args.topdir, 'vendor_images', self.os_name)
@@ -371,47 +442,37 @@ class CumulusBootstrap(object):
                 ok=False, error_type='install',
                 message=errmsg))
 
-        msg = 'Installing Cumulus image=[%s] ... this can take up to 30 min.' % self.image_name
+        msg = 'Installing OPX image=[%s] ... this can take up to 30 min.' % self.image_name
         self.log.info(msg)
         self.post_device_status(message=msg, state='OS-INSTALL')
+        try:
+            ssh = self.get_ssh_session(user=self.user, password=self.passwd, sudo=True)
+            ssh.sendline('grub-reboot --boot-directory=/mnt/boot ONIE')
+            ssh.prompt()
+            ssh.sendline('/mnt/onie-boot/onie/tools/bin/onie-boot-mode -o rescue')
+            ssh.prompt()
+            ssh.sendline('reboot')
 
-        os_semver = semver.parse_version_info(self.dev.facts['os_version'])
+        except pxssh.ExceptionPxssh as e:
+            self.log.info(str(e))
+            self.exit_results(results=dict(ok=False, error_type='install', message=str(e)))
 
-        # Cumulus 2.x upgrade command is removed in Cumulus 3.x, so two upgrade methods are required
-        # Cumulus 2.x upgrade
-        if os_semver.major == 2:
-            install_command = 'sudo /usr/cumulus/bin/cl-img-install -sf http://{server}/images/{os_name}/{image_name}'.format(server=self.cli_args.server, os_name=self.os_name, image_name=self.image_name)
-            all_good, results = self.dev.api.execute([install_command])
-            if not all_good:
-                errmsg = 'Unable to run command: {}. Error message: {}'.format(install_command, results)
-                self.exit_results(results=dict(
-                    ok=False,
-                    error_type='install',
-                    message=errmsg))
-        # Cumulus 3.x upgrade
-        else:
-            install_command = 'sudo onie-select -rf'
-            all_good, results = self.dev.api.execute([install_command])
-            if not all_good:
-                errmsg = 'Unable to run command: {}. Error message: {}'.format(install_command, results)
-                self.exit_results(results=dict(
-                    ok=False,
-                    error_type='install',
-                    message=errmsg))
-            self.dev.api.execute(['sudo reboot'])
-            time.sleep(60)
+        msg = 'Booting into ONIE rescue mode to install OS: %s' % self.image_name
+        self.log.info(msg)
+        self.post_device_status(message=msg, state='OS-INSTALL')
+        time.sleep(60)
 
-            # Boot into ONIE rescue mode
-            self.wait_for_onie_rescue(countdown=300, poll_delay=10, user='root')
+        # Wait for ONIE rescue mode
+        self.wait_for_onie_rescue(countdown=300, poll_delay=10, user='root')
 
-            # Download and verify OS
-            self.onie_install()
+        # Download and verify OS
+        self.onie_install()
 
-            # Wait for onie-rescue shell to terminate
-            time.sleep(60)
+        # Wait for onie-rescue shell to terminate
+        time.sleep(60)
 
-            # Wait for actual install to occur. This takes up to 30 min.
-            self.wait_for_device(countdown=1800, poll_delay=30)
+        # Wait for device to come back online after OS install
+        self.wait_for_device(countdown=10 * 60, poll_delay=30)
 
     def ensure_os_version(self):
         self.check_os_install_and_finally()
@@ -424,17 +485,6 @@ class CumulusBootstrap(object):
 
         self.log.info('software install OK')
 
-        os_semver = semver.parse_version_info(self.dev.facts['os_version'])
-        if os_semver.major < 3:
-            self.log.info('rebooting device ... please be patient')
-
-            self.post_device_status(message='OS install completed, now rebooting ... please be patient',
-                                    state='OS-REBOOTING')
-
-            self.dev.api.execute(['sudo reboot'])
-            time.sleep(self.cli_args.init_delay)
-            return self.wait_for_device(countdown=self.cli_args.reload_delay, poll_delay=10)
-
 
 # ##### -----------------------------------------------------------------------
 # #####
@@ -445,30 +495,26 @@ class CumulusBootstrap(object):
 def main():
     cli_args = cli_parse()
     self_server = cli_args.server
-    cboot = CumulusBootstrap(self_server, cli_args)
+    opxboot = OpxBootstrap(self_server, cli_args)
     if not os.path.isdir(cli_args.topdir):
-        cboot.exit_results(dict(
+        opxboot.exit_results(dict(
             ok=False,
             error_type='args',
             message='{} is not a directory'.format(cli_args.topdir)))
 
-    cboot.log.info("bootstrap init-delay: {} seconds"
-                  .format(cli_args.init_delay))
+    opxboot.post_device_status(message='bootstrap started, waiting for device access', state='START')
 
-    cboot.post_device_status(message='bootstrap started, waiting for device access', state='START')
+    opxboot.wait_for_device(countdown=cli_args.reload_delay, poll_delay=10, msg='Waiting for device access')
 
-    time.sleep(cli_args.init_delay)
-    cboot.wait_for_device(countdown=cli_args.reload_delay, poll_delay=10, msg='Waiting for device access')
+    opxboot.log.info("proceeding with bootstrap")
 
-    cboot.log.info("proceeding with bootstrap")
-
-    if cboot.dev.facts['virtual']:
-        cboot.log.info('Virtual device. No OS upgrade necessary.')
-        cboot.check_os_install_and_finally()
+    if opxboot.dev.facts['virtual']:
+        opxboot.log.info('Virtual device. No OS upgrade necessary.')
+        opxboot.check_os_install_and_finally()
     else:
-        cboot.ensure_os_version()
-    cboot.log.info("bootstrap process finished")
-    cboot.exit_results(dict(ok=True))
+        opxboot.ensure_os_version()
+    opxboot.log.info("bootstrap process finished")
+    opxboot.exit_results(dict(ok=True))
 
 
 if '__main__' == __name__:

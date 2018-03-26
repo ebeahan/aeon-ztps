@@ -290,22 +290,20 @@ def test_do_push_config_nxosexception(mock_isfile, mock_time, mock_open, mock_ex
     )
 
 
-@patch('aeon_ztp.bin.nxos_bootstrap.retry')
 @patch('aeon_ztp.bin.nxos_bootstrap.open')
 @patch('aeon_ztp.bin.nxos_bootstrap.time')
 @patch('aeon_ztp.bin.nxos_bootstrap.os.path.isfile', return_value=True)
-def test_do_push_config(mock_isfile, mock_time, mock_open, mock_retry, device, nb_obj):
+def test_do_push_config(mock_isfile, mock_time, mock_open, device, nb_obj):
     mock_open.return_value.read.side_effect = ['all config', 'model config']
     nb_obj.dev = device
     nb_obj.do_push_config()
     device.api.exec_config.assert_has_calls([call('all config'), call('model config')], call('copy run start'))
 
 
-@patch('aeon_ztp.bin.nxos_bootstrap.retry')
 @patch('aeon_ztp.bin.nxos_bootstrap.open')
 @patch('aeon_ztp.bin.nxos_bootstrap.time')
 @patch('aeon_ztp.bin.nxos_bootstrap.os.path.isfile', return_value=False)
-def test_do_push_config1_no_config(mock_isfile, mock_time, mock_open, mock_retry, device, nb_obj):
+def test_do_push_config1_no_config(mock_isfile, mock_time, mock_open, device, nb_obj):
     mock_open.return_value.read.side_effect = ['all config', 'model config']
     nb_obj.dev = device
     nb_obj.do_push_config()

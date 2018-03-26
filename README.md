@@ -25,7 +25,8 @@ The initial release of the Aeon-ZTP server supports the following NOS/hardware:
 |Cisco NX-OS     | 9K and 3K models | [POAP](http://www.cisco.com/c/en/us/td/docs/switches/datacenter/nexus3000/sw/fundamentals/503_U3_1/b_Nexus_3000_Fundamentals_Guide_Release_503_U3_1/using_power_on_auto_provisioning.pdf)        |
 |Arista EOS      | All models       | [Arista ZTP](https://eos.arista.com/ztp-set-up-guide/)        |
 |Cumulus Linux   | All models       | [ONIE](http://onie.org/) and [Cumulus AutoProvisioning](https://docs.cumulusnetworks.com/display/DOCS/Zero+Touch+Provisioning+-+ZTP)        |
-
+|OpenSwitchOPX   | All models       | Via register URL
+|Ubuntu Server   | 14.04 and 16.04  | Via register URL
 # Installation
 If you are using VirtualBox, you can build and install the Aeon-ZTP server by invoking "vagrant up" from within the install directory after configuring the setup files.  For the complete details on the installation process, please refer to the [installation guide](https://aeon-ztps.readthedocs.io/en/latest/installation-guide/installation-guide.html).
 

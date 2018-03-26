@@ -15,7 +15,7 @@ import hashlib
 from aeon.eos.device import Device
 from aeon.exceptions import ProbeError, UnauthorizedError
 from aeon.exceptions import ConfigError, CommandError
-from retrying import retry
+import tenacity
 
 
 # ##### -----------------------------------------------------------------------
@@ -275,7 +275,7 @@ class EosBootstrap(object):
             # retry for 5min (5000ms * 60) every 5000ms
             # because eAPI takes time to activate during boot.
 
-            @retry(wait_fixed=5000, stop_max_attempt_number=60)
+            @tenacity.retry(wait=tenacity.wait_fixed(5000), stop=tenacity.stop_after_attempt(60))
             def finalize():
                 self.log.info('Saving startup-config... (This will retry until eAPI is available.)')
                 self.dev.api.execute(['enable', 'copy running-config startup-config'])
@@ -343,7 +343,9 @@ class EosBootstrap(object):
                 message=errmsg
             ), exit_error=errmsg)
 
-    @retry(stop_max_attempt_number=10, wait_fixed=1000, stop_max_delay=600000)
+    @tenacity.retry(wait=tenacity.wait_fixed(1000),
+                    stop=tenacity.stop_any(tenacity.stop_after_delay(600000),
+                                           tenacity.stop_after_attempt(10)))
     def do_os_install(self):
         self.image_fpath = os.path.join(self.vendor_dir, self.image_name)
         if not os.path.isfile(self.image_fpath):

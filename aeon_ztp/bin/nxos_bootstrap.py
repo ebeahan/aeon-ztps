@@ -11,7 +11,7 @@ import logging.handlers
 import tempfile
 import time
 import requests
-from retrying import retry
+import tenacity
 import hashlib
 
 from aeon.nxos.device import Device
@@ -244,7 +244,7 @@ class NxosBootstrap(object):
     # #####
     # ##### -----------------------------------------------------------------------
 
-    @retry(wait_fixed=30000, stop_max_attempt_number=3)
+    @tenacity.retry(wait=tenacity.wait_fixed(30000), stop=tenacity.stop_after_attempt(3))
     def do_push_config(self):
         topdir = self.cli_args.topdir
         config_dir = os.path.join(topdir, 'etc', 'configs', self.os_name)

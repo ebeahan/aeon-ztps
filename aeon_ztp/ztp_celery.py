@@ -276,6 +276,10 @@ def retry_ztp(target, nos=None, user='admin', password='admin'):
             'dev_obj': NxosDevice,
             'cmds': 'terminal dont-ask ; write erase ; reload'
         },
+        'opx': {
+            'dev_obj': UbuntuDevice,
+            'cmds': ['curl "http://{}/api/register/opx"'.format(get_server_ipaddr(target))]
+        },
         'ubuntu': {
             'dev_obj': UbuntuDevice,
             'cmds': ['curl "http://{}/api/register/ubuntu"'.format(get_server_ipaddr(target))]

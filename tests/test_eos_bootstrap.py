@@ -356,10 +356,9 @@ def test_check_os_install(mock_subprocess, mock_exit, eb_obj, device):
     assert results == json.loads(json_string)
 
 
-@patch('retrying.time')
 @patch('aeon_ztp.bin.eos_bootstrap.EosBootstrap.exit_results', side_effect=SystemExit)
 @patch('aeon_ztp.bin.eos_bootstrap.os.path.isfile', return_value=False)
-def test_do_os_install_missing_image(mock_isfile, mock_exit, mock_time, eb_obj, device):
+def test_do_os_install_missing_image(mock_isfile, mock_exit, eb_obj, device):
     image_name = 'test_image'
     eb_obj.dev = device
     eb_obj.image_name = image_name
@@ -397,10 +396,9 @@ def test_do_os_install_missing_image(mock_isfile, mock_exit, mock_time, eb_obj, 
 #         }
 #     )
 
-@patch('retrying.time')
 @patch('aeon_ztp.bin.eos_bootstrap.EosBootstrap.exit_results', side_effect=SystemExit)
 @patch('aeon_ztp.bin.eos_bootstrap.os.path.isfile', return_value=True)
-def test_do_os_install(mock_isfile, mock_exit, mock_time, eb_obj, device):
+def test_do_os_install(mock_isfile, mock_exit, eb_obj, device):
     image_name = 'EOS-4.16.6M.swi'
     image_md5 = '0899eaad7f62e995a5fd109839f926eb'
     eb_obj.dev = device
@@ -421,12 +419,10 @@ def test_do_os_install(mock_isfile, mock_exit, mock_time, eb_obj, device):
     device.api.configure.assert_has_calls(conf_expected_calls)
 
 
-# TODO: Mock out retry decorator
-@pytest.mark.skip()
-@patch('retrying.time')
+@pytest.mark.skip
 @patch('aeon_ztp.bin.eos_bootstrap.EosBootstrap.exit_results', side_effect=SystemExit)
 @patch('aeon_ztp.bin.eos_bootstrap.os.path.isfile', return_value=True)
-def test_do_os_install_md5_mismatch(mock_isfile, mock_exit, mock_time, eb_obj, device):
+def test_do_os_install_md5_mismatch(mock_isfile, mock_exit, eb_obj, device):
     image_name = 'EOS-4.16.6M.swi'
     image_md5 = '0899eaad7f62e995a5fd109839f926eb'
     bad_image_md5 = 'foooooooo'
