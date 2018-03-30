@@ -505,6 +505,8 @@ def main():
     opxboot.post_device_status(message='bootstrap started, waiting for device access', state='START')
 
     opxboot.wait_for_device(countdown=cli_args.reload_delay, poll_delay=10, msg='Waiting for device access')
+    # Give the device time to stabilize since SSH may not be reliable yet.
+    time.sleep(30)
 
     opxboot.log.info("proceeding with bootstrap")
 
