@@ -37,7 +37,6 @@ NAME_SERVER=$(grep -m1 nameserver /var/log/messages)
 # [ Ip Address: 172.20.68.50/24; Gateway: 172.20.68.1; Boot File: tftp://172.20.68.4/ztp-eos.sh ]
 
 INTF=$(echo ${DHCP_SUCCESS} | gawk 'match($0, /received on ([^ ]+)/,arr){ print arr[1]}')
-IP_ADDR=$(echo ${DHCP_SUCCESS} | gawk 'match($0, /Ip Address: ([^;]+)/,arr){ print arr[1]}')
 GATEWAY=$(echo ${DHCP_SUCCESS} | gawk 'match($0, /Gateway: ([^;]+)/,arr){ print arr[1]}')
 BOOTFILE=$(echo ${DHCP_SUCCESS} | gawk 'match($0, /Boot File: ([^ ]+)/,arr){ print arr[1]}')
 DNS_IP=$(echo ${NAME_SERVER} | gawk 'match($0, /nameserver ([^ ]+)#/,arr){
@@ -48,6 +47,12 @@ SERVER=$(echo ${BOOTFILE} | cut --delimiter=/ -f3)
 HTTP="http://${SERVER}:${SERVER_PORT}"
 HTTP_DL="${HTTP}/downloads"
 HTTP_API="${HTTP}/api"
+
+# IP Address will be split in IP and subnet, also to workaround an issue with EOS 4.20.1
+# where subnet is repeated twice by mistake(e.g. 172.20.111.3/24/24)
+IP_ADDR_FULL=$(echo ${DHCP_SUCCESS} | gawk 'match($0, /Ip Address: ([^;]+)/,arr){ print arr[1]}')
+IP_ADDR="$(echo $IP_ADDR_FULL | cut -d/ -f1)"
+SUBNET="$(echo $IP_ADDR_FULL | cut -d/ -f2)"
 
 ${CLI} "enable"
 ${CLI} "show version > version_info"
@@ -81,7 +86,7 @@ fi
 
 ${CLI} "configure terminal
 interface $INTF
-ip address $IP_ADDR"
+ip address $IP_ADDR/$SUBNET"
 
 ${CLI} "copy run start"
 
