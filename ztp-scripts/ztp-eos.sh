@@ -28,7 +28,7 @@ SERVER_PORT=8080
 # of the Aeon ZTP server
 # ----------------------------------------------------
 
-DHCP_SUCCESS=$(grep -m1 DHCP_SUCCESS /var/log/messages)
+DHCP_SUCCESS=$(grep -m1 DHCP.*_SUCCESS /var/log/messages)
 NAME_SERVER=$(grep -m1 nameserver /var/log/messages)
 
 # example output:
