@@ -379,12 +379,11 @@ class EosBootstrap(object):
             self.dev.api.configure(['boot system flash:%s' % self.image_name])
 
         else:
-            # Install directly from ZTPS, bypassing the need to copy first
-            # Note that even if the install fails, this image will persist in flash.
-            # The next retry attempt will not have to download the image again.
-            cmds = ['install source http://{server}/images/{OS}/{filename}'
-                    .format(server=self.server, OS=self.os_name,
-                            filename=self.image_name)]
+            delete_img_cmd = 'bash timeout 45 rm -f /mnt/flash/%s' % self.image_name
+            copy_img_cmd = 'copy http://{server}/images/{OS}/{filename} flash:'.format(
+                server=self.server, OS=self.os_name, filename=self.image_name)
+            install_img_cmd = 'install source flash:%s' % self.image_name
+            cmds = [delete_img_cmd, copy_img_cmd, install_img_cmd]
             try:
                 self.dev.api.execute(cmds)
             except CommandError as e:
