@@ -22,7 +22,7 @@
 - name: copy aeon-ztps directories over
   copy: src="{{ TopDir }}/{{ item }}" dest={{ Install_dir }}
         owner={{ Aeon_user }} group={{ Aeon_group }}
-        directory_mode=775
+        directory_mode=775 mode=776
   with_items:
     - aeon_ztp/bin
     - etc
