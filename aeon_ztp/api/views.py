@@ -30,12 +30,6 @@ def download_file(filename):
     return send_from_directory(from_dir, filename)
 
 
-@api.route('/images/<path:filename>', methods=['GET'])
-def get_vendor_file(filename):
-    from_dir = path.join(_AEON_TOPDIR, 'vendor_images')
-    return send_from_directory(from_dir, filename)
-
-
 @api.route('/api/about')
 def api_version():
     version = pkg_resources.get_distribution("aeon_ztp").version
