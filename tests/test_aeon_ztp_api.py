@@ -54,18 +54,6 @@ def test_download_file(client):
     assert rv.data == 'test_data_stream'
 
 
-def test_get_vendor_file(client):
-    vendor_dir = os.path.join(os.environ['AEON_TOPDIR'], 'vendor_images')
-    temp = NamedTemporaryFile(dir=vendor_dir)
-    temp.write('test_data_stream')
-    try:
-        rv = client.get("/images/" + os.path.basename(temp.name))
-    finally:
-        temp.close()
-    assert rv.status_code == 200
-    assert rv.data == 'test_data_stream'
-
-
 def test_api_version(client):
     try:
         expected_version = pkg_resources.get_distribution('aeon-ztp').version
