@@ -163,7 +163,7 @@ def do_bootstrapper(server, os_name, target, log):
     # must pass command as a single string; using shell=True
 
     this = subprocess.Popen(
-        cmd_str, shell=True,
+        cmd_str, shell=True, env=os.environ.copy(),
         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
     log.info("starting bootstrapper[pid={pid}] [{cmd_str}]".format(
