@@ -90,6 +90,7 @@ class EosBootstrap(object):
         self.user, self.passwd = self.get_user_and_passwd()
         self.image_name = None
         self.finally_script = None
+        self.boot_drives = None
         self.dev = None
         self.vendor_dir = os.path.join(self.cli_args.topdir, 'vendor_images', self.os_name)
         self.image_fpath = None
@@ -328,9 +329,11 @@ class EosBootstrap(object):
             results = json.loads(_stdout)
             image_name = results.get('image_name', None)
             finally_script = results.get('finally', None)
+            boot_drives = results.get('boot_drives') or ['flash']
 
             self.image_name = image_name
             self.finally_script = finally_script
+            self.boot_drives = boot_drives
 
             self.post_device_facts()
             return results
@@ -364,8 +367,10 @@ class EosBootstrap(object):
         # check for file already on device
         # --------------------------------
 
+        drive = self.do_ensure_drive_exist()
+
         try:
-            self.dev.api.execute('dir flash:%s' % self.image_name)
+            self.dev.api.execute('dir %s:%s' % (drive, self.image_name))
             self.log.info('file already exists on device, skipping copy.')
             has_file = True
         except CommandError:
@@ -375,29 +380,33 @@ class EosBootstrap(object):
             # ---------------------------------------------
             # Configure switch to boot from existing upgrade image
             # ---------------------------------------------
-            self.check_md5()
-            self.dev.api.configure(['boot system flash:%s' % self.image_name])
+            self.check_md5(drive)
+            self.dev.api.configure(['boot system %s:%s' % (drive, self.image_name)])
 
         else:
-            delete_img_cmd = 'bash timeout 45 rm -f /mnt/flash/%s' % self.image_name
-            copy_img_cmd = 'copy http://{server}/images/{OS}/{filename} flash:'.format(
-                server=self.server, OS=self.os_name, filename=self.image_name)
-            install_img_cmd = 'install source flash:%s' % self.image_name
-            cmds = [delete_img_cmd, copy_img_cmd, install_img_cmd]
+            delete_img_cmd = 'bash timeout 45 rm -f /mnt/%s/%s' % (drive, self.image_name)
+            copy_img_cmd = 'copy http://{server}/images/{OS}/{filename}' \
+                           ' {drive}:'.format(server=self.server,
+                                              OS=self.os_name,
+                                              filename=self.image_name,
+                                              drive=drive)
+            cmds = [delete_img_cmd, copy_img_cmd]
             try:
                 self.dev.api.execute(cmds)
             except CommandError as e:
-                self.log.error('Error while installing image: {}'.format(str(e)))
-            self.check_md5()
+                self.log.error('Error while copying image: {}'.format(str(e)))
+            self.check_md5(drive)
+            self.dev.api.configure(['boot system %s:%s' % (drive, self.image_name)])
 
         # Write config
         self.dev.api.execute('copy running-config startup-config')
         return
 
-    def check_md5(self):
+    def check_md5(self, drive):
         """"""
         md5sum = self.ensure_md5sum(filepath=self.image_fpath)
-        got_md5 = self.dev.api.execute('verify /md5 flash:{}'.format(self.image_name))
+        got_md5 = self.dev.api.execute(
+            'verify /md5 {}:{}'.format(drive, self.image_name))
         has_md5 = got_md5['messages'][0].split('=')[-1].strip()
         if has_md5 != md5sum:
             errmsg = 'Image file {filename} MD5 mismatch has={has} should={should}' \
@@ -411,6 +420,34 @@ class EosBootstrap(object):
                 message=errmsg))
 
         self.log.info('md5sum checksum OK.')
+
+    def do_ensure_drive_exist(self):
+
+        def exit_with_error(error_message):
+            self.log.error(error_message)
+            self.exit_results(results=dict(
+                ok=False,
+                error_type='install',
+                message=error_message))
+
+        file_systems = self.dev.api.execute('show file systems')
+        available_drives = [fs['prefix'].split(':')[0]
+                            for fs in file_systems['fileSystems']
+                            if fs['fsType'] == 'flash']
+
+        if not available_drives:
+            errmsg = 'No flash type file system exist.'
+            exit_with_error(error_message=errmsg)
+
+        self.log.info('Available drives are: {}'.format(available_drives))
+        self.log.info('Boot drives are: {}'.format(self.boot_drives))
+
+        for drive in self.boot_drives:
+            if drive in available_drives:
+                return drive
+
+        errmsg = 'intended boot drive does not exist.'
+        exit_with_error(error_message=errmsg)
 
     def do_ensure_os_version(self):
         self.check_os_install_and_finally()
