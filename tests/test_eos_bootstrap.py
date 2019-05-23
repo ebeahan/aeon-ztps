@@ -396,9 +396,10 @@ def test_do_os_install_missing_image(mock_isfile, mock_exit, eb_obj, device):
 #         }
 #     )
 
+@patch('aeon_ztp.bin.eos_bootstrap.EosBootstrap.do_ensure_drive_exist', return_value='flash')
 @patch('aeon_ztp.bin.eos_bootstrap.EosBootstrap.exit_results', side_effect=SystemExit)
 @patch('aeon_ztp.bin.eos_bootstrap.os.path.isfile', return_value=True)
-def test_do_os_install(mock_isfile, mock_exit, eb_obj, device):
+def test_do_os_install(mock_isfile, mock_exit, mock_ensure_drive, eb_obj, device):
     image_name = 'EOS-4.16.6M.swi'
     image_md5 = '0899eaad7f62e995a5fd109839f926eb'
     eb_obj.dev = device
@@ -433,7 +434,7 @@ def test_do_os_install_md5_mismatch(mock_isfile, mock_exit, eb_obj, device):
     device.api.execute.side_effect = ['', {'messages': ['verify /md5 (flash:{image_name}) = {image_md5}'.format(
                                       image_name=image_name, image_md5=bad_image_md5)]}]
     with pytest.raises(SystemExit):
-        eb_obj.check_md5()
+        eb_obj.check_md5(drive='flash')
 
     mock_exit.assert_called_with(
         results={
@@ -503,3 +504,57 @@ def test_main_no_topdir(mock_cli_parse, mock_is_dir, mock_exit, cli_args):
     mock_exit.assert_called_with({'ok': False,
                                   'error_type': 'args',
                                   'message': exc})
+
+
+@patch('aeon_ztp.bin.eos_bootstrap.EosBootstrap.exit_results', side_effect=SystemExit)
+def test_do_ensure_drive_exist(mock_exist_result, eb_obj, device):
+    eb_obj.dev = device
+    device.api.execute.side_effect = [{
+        "fileSystems": [
+            {
+                "prefix": "alert-base:",
+                "currentFs": False,
+                "permission": "rw",
+                "fsType": "alert-base",
+                "free": 0,
+                "size": 0
+            },
+            {
+                "prefix": "certificate:",
+                "currentFs": False,
+                "permission": "rw",
+                "fsType": "ssl",
+                "free": 0,
+                "size": 0
+            },
+            {
+                "prefix": "flash:",
+                "currentFs": True,
+                "linuxFs": "vfat",
+                "permission": "rw",
+                "fsType": "flash",
+                "free": 827268,
+                "size": 1651860
+            },
+            {
+                "prefix": "tftp:",
+                "currentFs": False,
+                "permission": "rw",
+                "fsType": "network",
+                "free": 0,
+                "size": 0
+            },
+            {
+                "prefix": "usb1:",
+                "currentFs": False,
+                "linuxFs": "vfat",
+                "permission": "rw",
+                "fsType": "flash",
+                "free": 14069808,
+                "size": 15413888
+            }]
+    }]
+
+    eb_obj.boot_drives = ['usb1', 'flash']
+    retval = eb_obj.do_ensure_drive_exist()
+    assert retval == 'usb1'

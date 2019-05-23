@@ -160,6 +160,7 @@ def main():
             dev_data = json.loads(cli_args.json)
             hw_match = match_hw_model(dev_data, cfg_data)
             sw_match = match_os_version(dev_data, hw_match.data)
+            boot_drives = hw_match.data.get('boot_drives')
             finally_script = hw_match.data.get('finally')
 
         except ValueError:
@@ -200,6 +201,7 @@ def main():
     exit_results({
         'ok': True,
         'image_name': sw_match,
+        'boot_drives': boot_drives,
         'finally': finally_script
     })
 

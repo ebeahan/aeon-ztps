@@ -25,3 +25,4 @@ aeon-venos[nxos,cumulus,ubuntu,eos,centos]>=0.9.16
 flask-moment==0.5.2
 Flask-Migrate==2.1.1
 flake8==3.5.0
+urllib3==1.24.3

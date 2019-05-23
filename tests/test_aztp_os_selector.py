@@ -318,4 +318,30 @@ def test_main(mock_cli_parse, mock_load_cfg, mock_json_load, mock_exit_results, 
     mock_cli_parse.return_value = cli_args
     with pytest.raises(SystemExit):
         aztp_os_selector.main()
-    mock_exit_results.assert_called_with({'ok': True, 'image_name': sw_match, 'finally': hw_match.data['finally']})
+    mock_exit_results.assert_called_with({'ok': True, 'image_name': sw_match,
+                                          'boot_drives': None,
+                                          'finally': hw_match.data['finally']})
+
+
+@patch('aeon_ztp.bin.aztp_os_selector.match_os_version')
+@patch('aeon_ztp.bin.aztp_os_selector.match_hw_model')
+@patch('aeon_ztp.bin.aztp_os_selector.exit_results', side_effect=SystemExit)
+@patch('aeon_ztp.bin.aztp_os_selector.json.loads')
+@patch('aeon_ztp.bin.aztp_os_selector.load_cfg', return_value=cfg_data)
+@patch('aeon_ztp.bin.aztp_os_selector.cli_parse')
+def test_main_with_boot_drives(mock_cli_parse, mock_load_cfg, mock_json_load, mock_exit_results, mock_hw_match,
+              mock_os_match, cli_args):
+    sw_match = '4.21.5F'
+    item_match = namedtuple('item_match', ['hw_match', 'data'])
+    hw_match = item_match(hw_match='default', data={'image': 'Eos.swi',
+                                                    'exact_match': '4.21.5F',
+                                                    'boot_drives': ['drive1', 'usb1', 'flash'],
+                                                    'finally': 'finally'})
+    mock_hw_match.return_value = hw_match
+    mock_os_match.return_value = sw_match
+    mock_cli_parse.return_value = cli_args
+    with pytest.raises(SystemExit):
+        aztp_os_selector.main()
+    mock_exit_results.assert_called_with({'ok': True, 'image_name': sw_match,
+                                          'boot_drives': ['drive1', 'usb1', 'flash'],
+                                          'finally': hw_match.data['finally']})
