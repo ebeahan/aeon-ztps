@@ -93,3 +93,4 @@ Temporary Items
 # DB Files
 /*.db
 *.sqlite
+*.retry

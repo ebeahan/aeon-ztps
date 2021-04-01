@@ -10,7 +10,6 @@ REMOTE_USERNAME="admin"
 REMOTE_PASSWD="admin"
 
 INSTALL_LICENSE_FILE="license"
-INSTALL_VRF_DEB="cl-mgmtvrf.deb"
 
 LOCK_FILE=/mnt/persist/aeon-ztp.lock
 
@@ -22,7 +21,7 @@ function error () {
 trap error ERR
 
 
-provision_url=$(grep -m1 'cumulus-provision-url' /var/lib/dhcp/dhclient.eth0.leases | awk -F "/" '{print $3}')
+provision_url=$(cat /var/lib/dhcp/dhclient.eth0.leases | grep 'cumulus-provision-url'| tail -1 | awk -F "/" '{print $3}')
 if [ -n "$provision_url" ]; then
     HTTP="http://${provision_url}"
 else
@@ -41,8 +40,7 @@ function create_remote_user(){
 
     if [[ ! -e ${sudoer_file} ]]
     then
-        cp -r /home/cumulus /home/${REMOTE_USERNAME}
-        useradd --shell /bin/bash ${REMOTE_USERNAME}
+        adduser --disabled-password --gecos "" ${REMOTE_USERNAME}
         usermod -p $(echo ${REMOTE_PASSWD} | openssl passwd -1 -stdin) ${REMOTE_USERNAME}
         echo "${REMOTE_USERNAME} ALL=(ALL) NOPASSWD:ALL" > ${sudoer_file}
     fi
@@ -61,39 +59,27 @@ function install_license(){
    fi
 }
 
-function install_vrf(){
-    check=$(dpkg -l | grep -i cl-mgmtvrf)
-    if [[ $? -eq 0 ]]
-    then
-        return
-    fi
-
-    wget -O cl-mgmtvrf.deb ${HTTP}/images/cumulus/${INSTALL_VRF_DEB}
-    dpkg -i cl-mgmtvrf.deb
-    /usr/sbin/cl-mgmtvrf --enable
-    if [ -e /etc/cumulus/switchd.conf ]
-    then
-        sed -ri 's/#ignore_non_swps = FALSE/ignore_non_swps = TRUE/g' \
-        /etc/cumulus/switchd.conf
-    fi
+function is_cumulus_vx(){
+   local product=$(decode-syseeprom | grep "Product Name" | awk '{print $NF}')
+   if [[ "$product" == "VX" ]]; then
+      return 0
+   else
+      return 1
+   fi
 }
 
 function kickstart_aeon_ztp(){
-    if [[ ! -e ${LOCK_FILE} ]]
-    then
-        wget -O /dev/null ${HTTP}/api/register/cumulus
-        touch ${LOCK_FILE}
-    else
-        rm ${LOCK_FILE}
-    fi
+     wget -O /dev/null ${HTTP}/api/register/cumulus
 }
 
 create_remote_user
-install_vrf
-install_license
 kickstart_aeon_ztp
+
+if ! is_cumulus_vx; then
+   install_license
+fi
 
 # CUMULUS-AUTOPROVISIONING
 
-## exit cleanly, no reboot
+# exit cleanly, no reboot
 exit 0

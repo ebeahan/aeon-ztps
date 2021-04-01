@@ -61,7 +61,7 @@ def get(vendor):
         dict: Dictionary representation of specified OS-selector configuration file for the specified vendor (eg: eos)
 
     """
-    filename = os.path.join(_AEON_TOPDIR, 'etc/profiles/default/{vendor}/os-selector.cfg'.format(vendor=vendor))
+    filename = os.path.join(_AEON_TOPDIR, 'etc/profiles/{vendor}/os-selector.cfg'.format(vendor=vendor))
     return load_yaml(filename)
 
 
@@ -83,7 +83,7 @@ class Vendor:
         """
         self.vendor = vendor
         self.path = os.path.join(_AEON_TOPDIR, 'vendor_images/{vendor}'.format(vendor=vendor))
-        self.config_filename = os.path.join(_AEON_TOPDIR, 'etc/profiles/default/{vendor}/os-selector.cfg'.format(vendor=vendor))
+        self.config_filename = os.path.join(_AEON_TOPDIR, 'etc/profiles/{vendor}/os-selector.cfg'.format(vendor=vendor))
         try:
             _data = get(vendor)
             self.default_image = _data['default']['image']

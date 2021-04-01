@@ -1,8 +1,9 @@
-varsInterfaces = YAML.load_file("vars/interfaces.yml")
-ipAddr = varsInterfaces['Interfaces']['eth1']['address'].split('/')[0]
+require 'yaml'
 
+varsInterfaces = YAML.load_file("vars/interfaces.yml")
+ipAddr = varsInterfaces['vagrant_interfaces']['eth1']['address'].split('/')[0]
 Vagrant.configure(2) do |config|
-  config.vm.box = "cloudtoad/xenial_server_base"
+  config.vm.box = "ubuntu/xenial64"
   config.vm.hostname = 'aeon-ztps'
   config.vm.network "private_network", ip: ipAddr, nic_type: "virtio"
 
@@ -14,6 +15,9 @@ Vagrant.configure(2) do |config|
 
   config.vm.provision "ansible" do |ansible|
     ansible.playbook = "via-ansible.yml"
+    ansible.extra_vars = {
+        vagrant: "True"
+    }
   end
 
 end

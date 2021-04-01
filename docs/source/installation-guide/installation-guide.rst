@@ -46,14 +46,14 @@ Install Setup Checklist
         :literal:`install/roles/dhcp-server/templates/dhcpd.conf`
 
 
-Install via VirtualBox
-----------------------
+Install via Vagrant
+-------------------
 
 .. _Vagrant: https://www.vagrantup.com/
 .. _VirtualBox: https://www.virtualbox.org/wiki/Downloads/
 .. _Ansible: http://docs.ansible.com/ansible/intro_installation.html/
 
-The current installation process is designed to install the Aeon-ZTPS into a VirtualBox environment using Vagrant and
+The current installation process is designed to install the Aeon-ZTPS into a Vagrant environment using Vagrant and
 an Ansible playbook.
 
 The process uses a combination of the following tools, and associated versions.  This process has been verified using
@@ -80,12 +80,23 @@ Edit the :literal:`install/Vagrantfile` file to also assign the eth1 value as pa
     .. figure:: install-vagrantfile.png
 
 
-To perform the build and installation into VirtualBox, do the following on your host machine:
+To perform the build and installation into Vagrant, do the following on your host machine:
 
 .. code:: bash
 
     cd install
     vagrant up
+
+Once the VM build is complete, and the VM has been automatically rebooted, you can login to the VM by typing:
+
+.. code:: bash
+
+    vagrant ssh
+
+----------
+Login Info
+----------
+An account with username "admin" and password "admin" is created by default.
 
 
 Install via Ansible Playbook
@@ -110,6 +121,51 @@ then do the following to install Aeon-ZTPS on that server:
     cd install
     echo "192.168.59.265" > hosts
     ansible-playbook via-ansible.yml -i hosts -u admin -kK
+
+Configure DHCP Service
+----------------------
+AEON-ZTPS includes isc-dhcp-server, and also supports external DHCP servers. An example DHCP configuration is shown below.
+
+.. code-block:: yaml
+   :caption: /etc/dhcp/dhcpd.conf
+
+    # This is an example DHCP file. Please note that all "192.168.59.XXX" networks
+    # must be configured to match your environment.
+    # If using an exter
+
+    ddns-update-style none;
+    option domain-name-servers {{ DNS server }}, {{ DNS Server }};
+    default-lease-time 7200;
+    max-lease-time 7200;
+    authoritative;
+
+    log-facility local7;
+
+    # The specific settings for Cumulus ONIE process
+    option cumulus-provision-url code 239 = text;
+
+    # this default-url *MUST* be in the global area for ONIE to
+    # work properly.  Not sure why this is, but it is.
+
+    option default-url = "http://{{ AEON-ZTPS IP }}/images/cumulus/onie-installer";
+    option cumulus-provision-url "http://{{ AEON-ZTPS IP }}/downloads/ztp-cumulus.sh";
+
+    class "eos-switch" {
+       match if (substring(option vendor-class-identifier, 0, 6) = "Arista");
+       option bootfile-name "ztp-eos.sh";
+    }
+
+    class "nxos-switch" {
+       match if (substring(option vendor-class-identifier, 0, 5) = "Cisco");
+       option bootfile-name "ztp-nxos.py";
+    }
+
+    # Add subnet scopes here
+    subnet 192.168.59.0 netmask 255.255.255.0 {
+       range 192.168.59.20 192.168.59.100;
+       option tftp-server-name "{{ AEON-ZTPS IP }}";
+       option routers 192.168.59.1;
+    }
 
 Enable DHCP Service
 -------------------

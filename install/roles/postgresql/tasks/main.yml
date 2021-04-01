@@ -1,0 +1,19 @@
+- name: Install postgresql requirements
+  apt:
+    name:
+      - postgresql
+      - postgresql-contrib
+      - python-psycopg2
+      - libpq-dev
+
+- name: Create aeonztps database
+  postgresql_db:
+    name: aeonztps
+  become_user: postgres
+
+- name: Create postgres user
+  postgresql_user:
+    db: aeonztps
+    name: admin
+    password: avocadotoast
+  become_user: postgres

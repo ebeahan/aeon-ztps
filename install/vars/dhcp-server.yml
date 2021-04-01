@@ -1,6 +1,23 @@
-DHCPS_enable: no
+DHCPS_enable: False
 
-DHCPS_config:
-    interface: eth1
-    lease: [192.168.59.50, 192.168.59.150]
-    nameserver: 192.168.59.254
+# -----------------------------------------------------------------------------
+# anything below this line is ignored when the dhcp server install is disabled
+# -----------------------------------------------------------------------------
+
+DHCPS_tftpserver: "{{ interfaces['eth0'].address | ipaddr('address') }}"
+DHCPS_nameserver: "{{ interfaces['eth0'].address | ipaddr('address') }}"
+
+DHCPS_scopes:
+
+    -   network: "{{ interfaces['eth0'].address | ipaddr('network') }}"
+        netmask: "{{ interfaces['eth0'].address | ipaddr('netmask') }}"
+        gateway: "{{ interfaces['eth0'].gateway }}"
+        range_start_offset: 10
+        range_end_offset: -10
+
+    -   network: 192.168.60.0
+        netmask: 255.255.255.0
+        gateway: 192.168.60.2
+        range_start_offset: 10
+        range_end_offset: -10
+

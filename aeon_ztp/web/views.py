@@ -29,6 +29,7 @@ from werkzeug.utils import secure_filename
 from aeon_ztp import ztp_os_selector
 from aeon_ztp.api import models
 from ztp_sudo import flush_dhcp
+from aeon_ztp.api.views import ztp_retry
 
 _syslog_file = "/var/log/syslog"
 _dhcp_leases_file = '/var/lib/dhcp/dhcpd.leases'
@@ -70,9 +71,9 @@ def valid_logs():
             'description': 'Aeon UWSGI Web application logs (not very useful)'
         },
         'bootstrapper': {
-            'filename': '/var/log/aeon-ztp/bootstrapper.log',
+            'filename': '/var/log/syslog',
             'search': '',
-            'description': 'Aeon ZTP Bootstrapper log files'
+            'description': 'Aeon ZTP Device log files'
         },
         'nginx-access': {
             'filename': '/var/log/aeon-ztp/nginx.access.log',
@@ -114,6 +115,7 @@ def scrape_file(filename, search, searchfilter='', lineno=0):
         with open(filename, "r") as f:
             for line in f:
                 # A bit lazy: could maybe be faster.
+                line = line.decode('utf8')
                 if search in line.lower() and searchfilter in line.lower():
                     lines.append(line.replace('\n', ''))
             if lineno:
@@ -382,10 +384,10 @@ def dhcp_flush():
     try:
         flush_dhcp()
         flash('Successfully Flushed DHCP leases', 'success')
-        return redirect(url_for('dhcp_leases'), code=302)
+        return redirect(url_for('web.dhcp_leases'), code=302)
     except OSError as e:
         flash('Could not flush DHCP {}'.format(e), 'danger')
-        return redirect(url_for('dhcp_leases'), code=302)
+        return redirect(url_for('web.dhcp_leases'), code=302)
 
 
 @web.route('/dhcp')
@@ -539,6 +541,19 @@ def delete_device(ip):
     deldevices.delete(synchronize_session=False)
     db.commit()
     flash('Deleted {} entries from ZTP DB'.format(count), 'success')
+    return redirect(url_for('web.status'))
+
+
+@web.route('/devices/retry/<ip>')
+def retry(ip):
+    """ Retry ZTP process for device IP.
+
+    Args:
+        ip (str): IP address to retry ZTP.
+
+    """
+    ztp_retry(ip)
+    flash('Retrying ZTP for %s' % ip, 'success')
     return redirect(url_for('web.status'))
 
 

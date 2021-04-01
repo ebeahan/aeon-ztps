@@ -28,7 +28,8 @@ SERVER_PORT=8080
 # of the Aeon ZTP server
 # ----------------------------------------------------
 
-DHCP_SUCCESS=$(grep -m1 DHCP_SUCCESS /var/log/messages)
+DHCP_SUCCESS=$(grep -m1 DHCP.*_SUCCESS /var/log/messages)
+NAME_SERVER=$(grep -m1 nameserver /var/log/messages)
 
 # example output:
 # ---------------
@@ -36,15 +37,22 @@ DHCP_SUCCESS=$(grep -m1 DHCP_SUCCESS /var/log/messages)
 # [ Ip Address: 172.20.68.50/24; Gateway: 172.20.68.1; Boot File: tftp://172.20.68.4/ztp-eos.sh ]
 
 INTF=$(echo ${DHCP_SUCCESS} | gawk 'match($0, /received on ([^ ]+)/,arr){ print arr[1]}')
-IP_ADDR=$(echo ${DHCP_SUCCESS} | gawk 'match($0, /Ip Address: ([^;]+)/,arr){ print arr[1]}')
 GATEWAY=$(echo ${DHCP_SUCCESS} | gawk 'match($0, /Gateway: ([^;]+)/,arr){ print arr[1]}')
 BOOTFILE=$(echo ${DHCP_SUCCESS} | gawk 'match($0, /Boot File: ([^ ]+)/,arr){ print arr[1]}')
+DNS_IP=$(echo ${NAME_SERVER} | gawk 'match($0, /nameserver ([^ ]+)#/,arr){
+print arr[1]}')
 
 SERVER=$(echo ${BOOTFILE} | cut --delimiter=/ -f3)
 
 HTTP="http://${SERVER}:${SERVER_PORT}"
 HTTP_DL="${HTTP}/downloads"
 HTTP_API="${HTTP}/api"
+
+# IP Address will be split in IP and subnet, also to workaround an issue with EOS 4.20.1
+# where subnet is repeated twice by mistake(e.g. 172.20.111.3/24/24)
+IP_ADDR_FULL=$(echo ${DHCP_SUCCESS} | gawk 'match($0, /Ip Address: ([^;]+)/,arr){ print arr[1]}')
+IP_ADDR="$(echo $IP_ADDR_FULL | cut -d/ -f1)"
+SUBNET="$(echo $IP_ADDR_FULL | cut -d/ -f2)"
 
 ${CLI} "enable"
 ${CLI} "show version > version_info"
@@ -61,27 +69,24 @@ ${CLI} "copy ${HTTP_API}/bootconf/eos running"
 # MUST be done before updating the EOS configuration
 # -------------------------------------------------------------------
 
-if [[ -n "$GATEWAY" ]]; then
-${CLI} "configure terminal
-ip route 0.0.0.0/0 $GATEWAY"
-fi
-
 wget -O /dev/null ${HTTP_API}/register/eos
 
 # ----------------------------------------------
 # update the EOS management configuration
 # ----------------------------------------------
-
 if [[ -n "$GATEWAY" ]]; then
 ${CLI} "configure terminal
-no ip route 0/0
-ip route vrf management 0.0.0.0/0 $GATEWAY"
+ip route 0.0.0.0/0 $GATEWAY"
+fi
+
+if [[ -n "$DNS_IP" ]]; then
+${CLI} "configure terminal
+ip name-server $DNS_IP"
 fi
 
 ${CLI} "configure terminal
 interface $INTF
-vrf forwarding management
-ip address $IP_ADDR"
+ip address $IP_ADDR/$SUBNET"
 
 ${CLI} "copy run start"
 

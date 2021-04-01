@@ -119,12 +119,13 @@ APIs would be of User interest, and they form the basis of providing information
 
 Log Files
 ---------
+All of the AEON-ZTPS logs detailing the actual bootstrap process are sent to syslog in the following format:
+.. code::
+
+    Sep 21 19:07:13 aeon-ztps eos-bootstrap INFO 172.20.116.13: config completed OK.
+    Sep 21 19:07:13 aeon-ztps eos-bootstrap INFO 172.20.116.13: Virtual device. No OS upgrade necessary.
 
 The Aeon-ZTPS system maintains a number of logs in the directory: :literal:`/var/log/aeon-ztp`, as follows:
-
-    * :literal:`bootstrap.log`
-        The logfile for all NOS bootstrapper programs.  Most of the information you would be interested in is located in
-        this file.
 
     * :literal:`worker1.log`
         This logfile used by the background scheduling system, celeryd.

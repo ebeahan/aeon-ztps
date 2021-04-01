@@ -1,6 +1,23 @@
+- name: Edit grub file to revert back to 'ethX' interface naming scheme
+  replace:
+    dest: '/etc/default/grub'
+    replace: 'GRUB_CMDLINE_LINUX="net.ifnames=0 biosdevname=0"'
+    regexp: 'GRUB_CMDLINE_LINUX=""'
+  when: ansible_distribution == "Ubuntu" and ansible_distribution_major_version >= "16"
+
+- name: Regenerate grub.cfg
+  command: "/usr/sbin/grub-mkconfig -o /boot/grub/grub.cfg"
+  when: ansible_distribution == "Ubuntu" and ansible_distribution_major_version >= "16"
+
 - name: install /etc/network/interfaces
   copy: src=interfaces dest=/etc/network/interfaces
 
 - name: create interface cfg files
   template: src=iface.jinja2 dest=/etc/network/interfaces.d/{{ item.key }}.cfg
-  with_dict: "{{ Interfaces }}"
+  with_dict: "{{ interfaces }}"
+  when: not vagrant
+
+- name: create Vagrant interface cfg files
+  template: src=iface.jinja2 dest=/etc/network/interfaces.d/{{ item.key }}.cfg
+  with_dict: "{{ vagrant_interfaces }}"
+  when: vagrant

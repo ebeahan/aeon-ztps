@@ -7,9 +7,13 @@ from flask import Flask
 from config import config
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
+from flask_moment import Moment
+from flask_migrate import Migrate
 
 db = SQLAlchemy()
 ma = Marshmallow()
+moment = Moment()
+migrate = Migrate()
 
 
 def create_app(conf=None):
@@ -21,13 +25,11 @@ def create_app(conf=None):
     app.config.from_object(config[conf])
     db.init_app(app)
     ma.init_app(app)
+    moment.init_app(app)
+    migrate.init_app(app, db)
     from aeon_ztp.api.views import api
     from aeon_ztp.web.views import web
     app.register_blueprint(api)
     app.register_blueprint(web)
-
-    @app.before_first_request
-    def initialize_database():
-        db.create_all()
 
     return app

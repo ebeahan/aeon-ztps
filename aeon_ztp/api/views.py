@@ -14,10 +14,9 @@ import pkg_resources
 
 from flask import Blueprint, request, jsonify
 from flask import send_from_directory
-from sqlalchemy import and_ as SQL_AND
 from sqlalchemy.orm.exc import NoResultFound
 
-import models
+from models import device_schema, Device
 from aeon_ztp import ztp_celery
 
 api = Blueprint('api', __name__)
@@ -28,12 +27,6 @@ _AEON_TOPDIR = os.getenv('AEON_TOPDIR')
 @api.route('/downloads/<path:filename>', methods=['GET'])
 def download_file(filename):
     from_dir = path.join(_AEON_TOPDIR, 'downloads')
-    return send_from_directory(from_dir, filename)
-
-
-@api.route('/images/<path:filename>', methods=['GET'])
-def get_vendor_file(filename):
-    from_dir = path.join(_AEON_TOPDIR, 'vendor_images')
     return send_from_directory(from_dir, filename)
 
 
@@ -68,6 +61,42 @@ def api_env():
     my_env = os.environ.copy()
     return jsonify(my_env)
 
+
+@api.route('/api/retry/<ip_addr>', methods=['GET'])
+def ztp_retry(ip_addr):
+    """
+    Returns device to default configuration and reloads device to retry ZTP
+    :param ip_addr: IP Address of device
+    :return ok: Boolean status of request
+    :return message: Status message
+    :return data: Device data after successful request
+    """
+
+    db = aeon_ztp.db.session
+    try:
+        dev = db.query(Device).filter(Device.ip_addr == ip_addr).one()
+        dev.message = 'Defaulting device config and reloading to retry ZTP'
+        dev.state = 'RETRY'
+        dev.updated_at = time_now()
+        db.commit()
+
+    except NoResultFound:
+        return jsonify(
+            ok=False,
+            message='Not Found'), 404
+
+    except Exception as exc:
+        return jsonify(
+            ok=False,
+            error_type=str(type(exc)),
+            message=exc.message), 500
+
+    # Run retry
+    ztp_celery.retry_ztp.delay(ip_addr, nos=dev.os_name)
+
+    return jsonify(
+        ok=True,
+        message='ZTP retry initiated')
 # -----------------------------------------------------------------------------
 #
 #                                 Utility Functions
@@ -75,31 +104,25 @@ def api_env():
 # -----------------------------------------------------------------------------
 
 
-def find_device(db, table, dev_data):
-    return db.query(table).filter(SQL_AND(
-        table.os_name == dev_data['os_name'],
-        table.ip_addr == dev_data['ip_addr']))
+def find_device(db, dev_data):
+    return db.query(Device).filter(Device.ip_addr == dev_data['ip_addr'])
 
 
-def find_devices(db, table, matching):
+def find_devices(db, matching):
     """
     :param db: database
-    :param table: table
     :param matching: dictionary of column name:value parings
     :return: filtered query items
     """
 
-    filter_list = []
-    for name, value in matching.iteritems():
-        col = getattr(table, name)
-        filter_list.append(col.op('==')(value))
-
-    return db.query(table).filter(SQL_AND(*filter_list))
+    query = db.query(Device)
+    for _filter, value in matching.items():
+        query = query.filter(getattr(Device, _filter) == value)
+    return query.all()
 
 
 def time_now():
-    now = datetime.now()
-    return datetime.isoformat(now)
+    return datetime.now()
 
 
 # -----------------------------------------------------------------------------
@@ -117,7 +140,7 @@ def time_now():
 @api.route('/api/devices', methods=['GET'])
 def _get_devices():
     db = aeon_ztp.db.session
-    to_json = models.device_schema
+    to_json = device_schema
 
     # ---------------------------------------------------------------
     # if the request has arguments, use these to form an "and" filter
@@ -126,8 +149,8 @@ def _get_devices():
 
     if request.args:
         try:
-            recs = find_devices(db, models.Device, request.args)
-            if recs.count() == 0:
+            recs = find_devices(db, request.args.to_dict())
+            if len(recs) == 0:
                 return jsonify(ok=False,
                                message='Not Found: %s' % request.query_string), 404
 
@@ -141,7 +164,7 @@ def _get_devices():
     # otherwise, return all items in the database
     # -------------------------------------------
 
-    items = [to_json.dump(rec).data for rec in db.query(models.Device).all()]
+    items = [to_json.dump(rec).data for rec in db.query(Device).all()]
     return jsonify(count=len(items), items=items)
 
 
@@ -154,7 +177,6 @@ def _create_device():
     device_data = request.get_json()
 
     db = aeon_ztp.db.session
-    table = models.Device
 
     if not ('os_name' in device_data and 'ip_addr' in device_data):
         return jsonify(
@@ -162,20 +184,18 @@ def _create_device():
             rqst_data=device_data), 400
 
     # ----------------------------------------------------------
-    # check to see if the device already exists, and if it does,
-    # then reject the request
+    # check to see if the device already exists
     # ----------------------------------------------------------
 
     try:
-        rec = find_device(db, table, device_data).one()
-        rec.state = 'ERROR'
-        rec.updated_at = time_now()
+        rec = find_device(db, device_data).one()
+        rec.updated_at = datetime.now()
         rec.message = 'device with os_name, ip_addr already exists'
         db.commit()
 
         return jsonify(
-            ok=False, message=rec.message,
-            rqst_data=device_data), 400
+            ok=True, message='device already exists',
+            data=device_data)
 
     except NoResultFound:
         pass
@@ -185,8 +205,8 @@ def _create_device():
     # ---------------------------------------------
 
     try:
-        db.add(table(created_at=time_now(),
-                     updated_at=time_now(),
+        db.add(Device(created_at=datetime.now(),
+                     updated_at=datetime.now(),
                      **device_data))
         db.commit()
 
@@ -211,16 +231,15 @@ def _put_device_status():
     rqst_data = request.get_json()
 
     db = aeon_ztp.db.session
-    table = models.Device
 
     try:
-        rec = find_device(db, table, rqst_data).one()
+        rec = find_device(db, rqst_data).one()
 
         if rqst_data['state']:
             rec.state = rqst_data['state']
 
         rec.message = rqst_data.get('message')
-        rec.updated_at = time_now()
+        rec.updated_at = datetime.now()
         db.commit()
 
     except NoResultFound:
@@ -240,14 +259,17 @@ def _put_device_facts():
     rqst_data = request.get_json()
 
     db = aeon_ztp.db.session
-    table = models.Device
 
     try:
-        rec = find_device(db, table, rqst_data).one()
+        rec = find_device(db, rqst_data).one()
         rec.serial_number = rqst_data.get('serial_number')
         rec.hw_model = rqst_data.get('hw_model')
         rec.os_version = rqst_data.get('os_version')
-        rec.updated_at = time_now()
+        rec.facts = rqst_data.get('facts')
+        rec.updated_at = datetime.now()
+        rec.image_name = rqst_data.get('image_name')
+        rec.finally_script = rqst_data.get('finally_script')
+
         db.commit()
 
     except NoResultFound:
@@ -264,11 +286,10 @@ def _put_device_facts():
 
 @api.route('/api/devices', methods=['DELETE'])
 def _delete_devices():
-
     if request.args.get('all'):
         try:
             db = aeon_ztp.db.session
-            db.query(models.Device).delete()
+            db.query(Device).delete()
             db.commit()
 
         except Exception as exc:
@@ -280,15 +301,15 @@ def _delete_devices():
 
     elif request.args:
         db = aeon_ztp.db.session
-
         try:
-            recs = find_devices(db, models.Device, request.args)
-            n_recs = recs.count()
+            recs = find_devices(db, request.args.to_dict())
+            n_recs = len(recs)
             if n_recs == 0:
                 return jsonify(ok=False,
                                message='Not Found: %s' % request.query_string), 404
 
-            recs.delete(synchronize_session=False)
+            for dev in recs:
+                db.delete(dev)
             db.commit()
             return jsonify(
                 ok=True, count=n_recs,

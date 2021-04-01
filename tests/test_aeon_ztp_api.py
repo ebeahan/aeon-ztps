@@ -54,18 +54,6 @@ def test_download_file(client):
     assert rv.data == 'test_data_stream'
 
 
-def test_get_vendor_file(client):
-    vendor_dir = os.path.join(os.environ['AEON_TOPDIR'], 'vendor_images')
-    temp = NamedTemporaryFile(dir=vendor_dir)
-    temp.write('test_data_stream')
-    try:
-        rv = client.get("/images/" + os.path.basename(temp.name))
-    finally:
-        temp.close()
-    assert rv.status_code == 200
-    assert rv.data == 'test_data_stream'
-
-
 def test_api_version(client):
     try:
         expected_version = pkg_resources.get_distribution('aeon-ztp').version
@@ -155,10 +143,11 @@ def test_create_device_with_existing_device(client, device):
     rv = client.post('/api/devices',
                      data=json.dumps(device_info),
                      content_type='application/json')
-    assert rv.status_code == 400
+    assert rv.status_code == 200
     rvd = json.loads(rv.data)
-    assert rvd['message'] == 'device with os_name, ip_addr already exists'
-    assert rvd['rqst_data']['ip_addr'] == device['ip_addr']
+    assert rvd['message'] == 'device already exists'
+    assert rvd['ok']
+    assert rvd['data'] == device_info
 
 
 def test_create_device_with_bad_data(client):
@@ -290,17 +279,17 @@ def test_put_device_facts_no_result_found(client):
     assert rvd['item'] == device_info
 
 
-def test_delete_devices_all(client, device):
-    rv = client.delete('/api/devices?all=True')
-    assert rv.status_code == 200
-
-
 def test_delete_devices(client, device):
     rv = client.delete('/api/devices?ip_addr=1.2.3.4')
     assert rv.status_code == 200
     rvd = json.loads(rv.data)
     assert rvd['ok']
     assert rvd['count'] == 1
+
+
+def test_delete_devices_all(client, device):
+    rv = client.delete('/api/devices?all=True')
+    assert rv.status_code == 200
 
 
 def test_delete_devices_no_result_found(client, device):

@@ -1,19 +1,29 @@
 ---
 - hosts: all
   become: true
+  gather_facts: false
+
   vars:
     - TopDir: "{{ playbook_dir }}/.."
 
   vars_files:
     - vars/host.yml
     - vars/interfaces.yml
+    - vars/dhcp-server.yml
 
   roles:
     - ubuntu-base
+    - postgresql
     - aeon-ztp-server
     - tftp-server
     - web-server
     - dhcp-server
+
+  # Ansible requires python2, which is not installed by default on Ubuntu Xenial
+  pre_tasks:
+    - raw: sudo apt-get -y install python-simplejson
+    # action: setup will gather facts after python2 has been installed
+    - action: setup
 
   tasks:
     - name: Reboot
@@ -21,3 +31,4 @@
       async: 1
       poll: 0
       ignore_errors: true
+      when: (packer is defined and not packer) or (packer is not defined)

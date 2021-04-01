@@ -7,16 +7,27 @@
 - name: copy aeon-ztps conf file
   template: src=aeonztp.conf dest=/etc/aeonztp.conf owner=root group=root mode=644
 
+- name: create aeonztp directories
+  file:
+    path: "{{ Install_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ Aeon_user }}"
+    group: "{{ Aeon_group }}"
+    mode: 755
+  with_items:
+    - logs
+    - run
+    - packages
+
 - name: copy aeon-ztps directories over
   copy: src="{{ TopDir }}/{{ item }}" dest={{ Install_dir }}
         owner={{ Aeon_user }} group={{ Aeon_group }}
-        directory_mode=775
+        directory_mode=775 mode=776
   with_items:
-    - bin
+    - aeon_ztp/bin
     - etc
     - vendor_images
     - downloads
-    - packages
     - docs
 
 - name: copy aeon-ztp source files over
@@ -42,13 +53,6 @@
     - downloads
     - docs
 
-- name: create aeonztp directories
-  file: path={{ Install_dir }}/{{ item }} state=directory
-        owner={{ Aeon_user }} group={{ Aeon_group }} mode=755
-  with_items:
-    - logs
-    - run
-
 - name: create aeonztp /var directories
   file: path={{ item }} state=directory
         owner={{ Aeon_user }} group={{ Aeon_group }} mode=755
@@ -65,9 +69,6 @@
         src={{ Install_dir }}/tftpboot/ztp-cumulus.sh
         dest={{ Install_dir }}/downloads/ztp-cumulus.sh
 
-- name: install aztp-db-flush utility
-  file: state=link src={{ Install_dir }}/bin/aztp-db-flush
-        dest=/usr/local/bin/aztp-db-flush
 
 - name: Build aeon-ztp from source
   shell: python setup.py sdist
@@ -84,12 +85,6 @@
 - name: Move aeon-ztps package install file to packages directory
   shell: "mv {{ search_results.files[0].path }} {{ Install_dir }}/packages/"
 
-- name: TEMPORARY - Install aeon-venos from local package
-  pip:
-    name: "{{ Install_dir }}/packages/aeon-venos-0.2.0.tar.gz"
-
-# build the docs
-
 - name: Build docs using Sphinx
   shell: make html
   args:
@@ -101,4 +96,33 @@
     state: absent
 
 - name: sudoers for aeon ZTP helper scripts
-  copy: src=aeon-ztp.conf dest=/etc/sudoers.d mode=600
+  lineinfile:
+    dest: /etc/sudoers
+    state: present
+    regexp: '^%aeon'
+    line: "aeon ALL=NOPASSWD: /bin/systemctl restart isc-dhcp-server, /bin/systemctl disable isc-dhcp-server, /bin/systemctl enable isc-dhcp-server, /bin/systemctl start isc-dhcp-server, /bin/systemctl stop isc-dhcp-server, /usr/local/bin/dhcpd-reset, /opt/aosetc/bin/aosetc-import"
+
+- name: install sshpass for local use of ansible
+  apt: name=sshpass state=present
+
+- name: Make aeonztps directory readable
+  file:
+    path: /opt/aeonztps
+    mode: 0755
+
+- name: Give AEON group read access to logs
+  acl:
+    entity: aeon
+    path: /var/log/syslog
+    etype: group
+    permissions: r
+    state: present
+  with_items:
+     - /var/log/syslog
+     - /var/log/uwsgi/app/aeon-ztp.log
+
+- name: Create the Database tables
+  shell: |
+    aztp-manage db init
+    aztp-manage db migrate
+    aztp-manage db upgrade
